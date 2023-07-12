@@ -5,4 +5,4 @@ edition = "2021"
 publish = false
 
 [dependencies]
-anyhow = "1.0.71"
+thiserror = "1.0.43"

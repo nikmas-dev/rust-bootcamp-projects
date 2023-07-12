@@ -1,6 +1,14 @@
-use anyhow::{bail, Result};
+use thiserror::Error;
 
 pub type Coordinate = f64;
+
+#[derive(Error, Debug)]
+#[error("there should be at least one point in the set of points")]
+pub struct ConstructEmptyCollectionError;
+
+#[derive(Error, Debug)]
+#[error("cannot pop the last point: there should be at least one left")]
+pub struct PopLastElementError;
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Point {
@@ -12,9 +20,9 @@ pub struct Point {
 pub struct Polyline(Vec<Point>);
 
 impl Polyline {
-    pub fn new(points: Vec<Point>) -> Result<Self> {
+    pub fn new(points: Vec<Point>) -> Result<Self, ConstructEmptyCollectionError> {
         if points.is_empty() {
-            bail!("there should be at least one point in the set of points");
+            return Err(ConstructEmptyCollectionError);
         }
 
         Ok(Self(points))
@@ -28,14 +36,12 @@ impl Polyline {
         self.0.push(point);
     }
 
-    pub fn pop(&mut self) -> Result<()> {
+    pub fn pop(&mut self) -> Result<Point, PopLastElementError> {
         if self.0.len() == 1 {
-            bail!("cannot pop the last point: there should be at least one left");
+            return Err(PopLastElementError);
         }
 
-        self.0.pop();
-
-        Ok(())
+        Ok(self.0.pop().unwrap())
     }
 }
 
