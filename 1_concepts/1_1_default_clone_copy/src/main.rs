@@ -11,7 +11,7 @@ pub struct EmptyCollectionError {
 impl EmptyCollectionError {
     pub fn new(message: &str) -> Self {
         Self {
-            details: message.to_string(),
+            details: message.to_owned(),
         }
     }
 }
