@@ -1,6 +1,22 @@
-use anyhow::{bail, Result};
+use thiserror::Error;
 
 pub type Coordinate = f64;
+
+#[derive(Error, Debug)]
+#[error("{details}")]
+pub struct EmptyCollectionError {
+    details: String,
+}
+
+impl EmptyCollectionError {
+    pub fn new(message: &str) -> Self {
+        Self {
+            details: message.to_string(),
+        }
+    }
+}
+
+pub type Result<T> = std::result::Result<T, EmptyCollectionError>;
 
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Point {
@@ -14,7 +30,9 @@ pub struct Polyline(Vec<Point>);
 impl Polyline {
     pub fn new(points: Vec<Point>) -> Result<Self> {
         if points.is_empty() {
-            bail!("there should be at least one point in the set of points");
+            return Err(EmptyCollectionError::new(
+                "there should be at least one point in the set of points",
+            ));
         }
 
         Ok(Self(points))
@@ -30,7 +48,9 @@ impl Polyline {
 
     pub fn pop(&mut self) -> Result<Point> {
         if self.0.len() == 1 {
-            bail!("cannot pop the last point: there should be at least one left");
+            return Err(EmptyCollectionError::new(
+                "cannot pop the last point: there should be at least one left",
+            ));
         }
 
         Ok(self.0.pop().unwrap())
