@@ -40,6 +40,22 @@ impl Polyline {
 }
 
 fn main() {
-    let polyline = Polyline::new(vec![Default::default(), Default::default()]).unwrap();
+    let mut polyline = Polyline::new(vec![Default::default(), Default::default()]).unwrap();
+    println!("{:?}", polyline);
+    assert_eq!(polyline.points().len(), 2);
+
+    polyline.push(Default::default());
+    assert_eq!(polyline.points().len(), 3);
+    println!("{:?}", polyline);
+
+    polyline.pop().unwrap();
+    assert_eq!(polyline.points().len(), 2);
+    println!("{:?}", polyline);
+
+    polyline.pop().unwrap();
+    assert_eq!(polyline.points().len(), 1);
+    println!("{:?}", polyline);
+
+    assert!(polyline.pop().is_err());
     println!("{:?}", polyline);
 }
