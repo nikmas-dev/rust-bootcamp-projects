@@ -9,9 +9,9 @@ pub struct EmptyCollectionError {
 }
 
 impl EmptyCollectionError {
-    pub fn new(message: &str) -> Self {
+    pub fn new(message: impl ToString) -> Self {
         Self {
-            details: message.to_owned(),
+            details: message.to_string(),
         }
     }
 }
