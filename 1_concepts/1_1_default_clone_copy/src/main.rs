@@ -28,14 +28,12 @@ impl Polyline {
         self.0.push(point);
     }
 
-    pub fn pop(&mut self) -> Result<()> {
+    pub fn pop(&mut self) -> Result<Point> {
         if self.0.len() == 1 {
             bail!("cannot pop the last point: there should be at least one left");
         }
 
-        self.0.pop();
-
-        Ok(())
+        Ok(self.0.pop().unwrap())
     }
 }
 
