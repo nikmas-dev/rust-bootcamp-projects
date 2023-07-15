@@ -23,6 +23,7 @@ mod t {
     }
 
     impl<T: Debug> SayHi for T {}
+    impl<T: Default> MutMeSomehow for T {}
 }
 
 mod other {
