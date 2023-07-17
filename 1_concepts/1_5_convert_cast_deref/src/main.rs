@@ -55,11 +55,11 @@ impl TryFrom<&str> for EmailString {
     }
 }
 
-pub struct Random<T>(T, T, T);
+pub struct Random<T>([T; 3]);
 
 impl<T> Random<T> {
     pub fn new(value_1: T, value_2: T, value_3: T) -> Self {
-        Self(value_1, value_2, value_3)
+        Self([value_1, value_2, value_3])
     }
 }
 
@@ -68,12 +68,7 @@ impl<T> Deref for Random<T> {
 
     fn deref(&self) -> &Self::Target {
         let value_number = rand::thread_rng().gen_range(0..3);
-        match value_number {
-            0 => &self.0,
-            1 => &self.1,
-            2 => &self.2,
-            _ => unreachable!(),
-        }
+        &self.0[value_number]
     }
 }
 
