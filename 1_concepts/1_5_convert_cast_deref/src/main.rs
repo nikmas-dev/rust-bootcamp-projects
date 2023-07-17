@@ -1,3 +1,4 @@
+use rand::prelude::SliceRandom;
 use rand::Rng;
 use regex::Regex;
 use std::borrow::Borrow;
@@ -67,8 +68,7 @@ impl<T> Deref for Random<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        let value_number = rand::thread_rng().gen_range(0..3);
-        &self.0[value_number]
+        self.0.choose(&mut rand::thread_rng()).unwrap()
     }
 }
 
