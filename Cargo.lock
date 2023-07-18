@@ -144,6 +144,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
 
 [[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
 name = "step_1"
 version = "0.1.0"
 
@@ -195,6 +201,9 @@ dependencies = [
 [[package]]
 name = "step_1_8"
 version = "0.1.0"
+dependencies = [
+ "static_assertions",
+]
 
 [[package]]
 name = "step_1_9"
