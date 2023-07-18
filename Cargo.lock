@@ -188,6 +188,9 @@ dependencies = [
 [[package]]
 name = "step_1_7"
 version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "step_1_8"
