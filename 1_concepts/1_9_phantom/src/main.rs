@@ -5,7 +5,7 @@ pub trait GetRandomFact {
     fn get_random_fact() -> String;
 }
 
-struct Fact<T: GetRandomFact>(PhantomData<T>);
+pub struct Fact<T: GetRandomFact>(PhantomData<T>);
 
 impl<T: GetRandomFact> Fact<T> {
     pub fn get() -> String {
