@@ -9,7 +9,7 @@ struct Trinity<T> {
     c: T,
 }
 
-impl<T: Clone> Trinity<T> {
+impl<T> Trinity<T> {
     fn rotate(&mut self) {
         mem::swap(&mut self.a, &mut self.b);
         mem::swap(&mut self.b, &mut self.c);
@@ -22,18 +22,18 @@ struct Solver<T> {
     unsolved: Vec<Trinity<T>>,
 }
 
-impl<T: Clone + PartialEq> Solver<T> {
+impl<T: PartialEq> Solver<T> {
     fn resolve(&mut self) {
         let mut unsolved = Vec::with_capacity(self.unsolved.len());
-        'l: for t in self.unsolved.iter_mut() {
+        'l: for mut t in mem::take(&mut self.unsolved) {
             for _ in 0..3 {
-                if *t == self.expected {
+                if t == self.expected {
                     continue 'l;
                 }
 
                 t.rotate();
             }
-            unsolved.push(t.clone())
+            unsolved.push(t)
         }
         self.unsolved = unsolved;
     }
