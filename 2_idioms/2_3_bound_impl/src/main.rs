@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::{
     borrow::{Borrow, BorrowMut},
     num::NonZeroU64,
@@ -36,6 +37,10 @@ where
 pub trait Event {
     /// A static description of the event.
     fn event_type(&self) -> &'static str;
+}
+
+pub struct Type<V> {
+    store: HashSet<V>,
 }
 
 /// An event that can be applied to an aggregate.
