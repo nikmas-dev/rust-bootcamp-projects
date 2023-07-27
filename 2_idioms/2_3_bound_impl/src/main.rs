@@ -39,10 +39,6 @@ pub trait Event {
     fn event_type(&self) -> &'static str;
 }
 
-pub struct Type<V> {
-    store: HashSet<V>,
-}
-
 /// An event that can be applied to an aggregate.
 pub trait AggregateEvent<A: Aggregate>: Event {
     /// Consumes the event, applying its effects to the aggregate.
