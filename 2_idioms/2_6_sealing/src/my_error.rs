@@ -6,7 +6,37 @@ use std::{
     fmt::{Debug, Display},
 };
 
+mod private {
+    pub struct Token;
+}
+
 /// Basic expectations for error values.
+/// # Examples
+///
+/// ```rust, compile_fail
+/// use std::any::TypeId;
+/// use std::fmt::{Debug, Display, Formatter};
+/// use step_2_6::MyError;
+///
+/// struct TestSealing;
+///
+/// impl Debug for TestSealing {
+///     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+///         todo!()
+///     }
+/// }
+///
+/// impl Display for TestSealing {
+///     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+///         todo!()
+///     }
+/// }
+///
+/// impl MyError for TestSealing {
+///     fn type_id(&self, _: step_2_6::my_error::private::Token) -> TypeId where Self: 'static {
+///       todo!()
+///   }
+/// }
 pub trait MyError: Debug + Display {
     /// The lower-level source of this error, if any.
     ///
@@ -67,7 +97,7 @@ pub trait MyError: Debug + Display {
     ///
     /// __This is memory-unsafe to override in user code.__
     #[doc(hidden)]
-    fn type_id(&self) -> TypeId
+    fn type_id(&self, _: private::Token) -> TypeId
     where
         Self: 'static,
     {
