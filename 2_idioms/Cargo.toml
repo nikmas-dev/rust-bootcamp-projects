@@ -6,3 +6,6 @@ publish = false
 
 [dependencies]
 thiserror = "1.0.44"
+derive_more = "0.99.17"
+strum = "0.25.0"
+strum_macros = "0.25.1"
