@@ -1,35 +1,37 @@
+use std::borrow::Cow;
 use std::net::{IpAddr, SocketAddr};
 
 fn main() {
     println!("Refactor me!");
 
-    let mut err = Error::new("NO_USER".to_string());
-    err.status(404).message("User not found".to_string());
+    let mut err = Error::new("NO_USER");
+    err.status(404).message("User not found");
 }
 
 #[derive(Debug)]
-pub struct Error {
-    code: String,
+pub struct Error<'a> {
+    code: Cow<'a, str>,
     status: u16,
-    message: String,
+    message: Cow<'a, str>,
 }
 
-impl Default for Error {
+impl<'a> Default for Error<'a> {
     #[inline]
     fn default() -> Self {
         Self {
-            code: "UNKNOWN".to_string(),
+            code: Cow::Borrowed("UNKNOWN"),
             status: 500,
-            message: "Unknown error has happened.".to_string(),
+            message: Cow::Borrowed("Unknown error has happened."),
         }
     }
 }
 
-impl Error {
-    pub fn new(code: String) -> Self {
-        let mut err = Self::default();
-        err.code = code;
-        err
+impl<'a> Error<'a> {
+    pub fn new(code: impl Into<Cow<'a, str>>) -> Self {
+        Self {
+            code: code.into(),
+            ..Self::default()
+        }
     }
 
     pub fn status(&mut self, s: u16) -> &mut Self {
@@ -37,8 +39,8 @@ impl Error {
         self
     }
 
-    pub fn message(&mut self, m: String) -> &mut Self {
-        self.message = m;
+    pub fn message(&mut self, m: impl Into<Cow<'a, str>>) -> &mut Self {
+        self.message = m.into();
         self
     }
 }
