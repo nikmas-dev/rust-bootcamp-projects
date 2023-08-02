@@ -4,6 +4,7 @@
 //!
 //! [0]: https://docs.rs/itertools/latest/src/itertools/lib.rs.html#2078-2136
 
+use crate::my_iterator_ext::private::Sealed;
 use std::fmt;
 
 use self::format::{Format, FormatWith};
@@ -40,6 +41,7 @@ pub trait MyIteratorExt: Iterator + private::Sealed {
     /// use step_2_6::MyIteratorExt as _;
     ///
     /// let data = [1.1, 2.71828, -3.];
+    ///
     /// assert_eq!(
     ///     format!("{:.2}", data.iter().format(", ")),
     ///            "1.10, 2.72, -3.00");
