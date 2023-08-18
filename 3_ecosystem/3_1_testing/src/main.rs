@@ -1,5 +1,3 @@
-use rand::Rng;
-use std::fmt::{write, Display, Formatter};
 use std::{cmp::Ordering, env, io};
 
 type Number = u32;
@@ -43,7 +41,15 @@ fn play(secret_number: Number, guess: Number) -> GameResult {
 }
 
 fn get_secret_number() -> u32 {
-    rand::thread_rng().gen_range(1..=100)
+    let secret_number = env::args()
+        .skip(1)
+        .take(1)
+        .last()
+        .expect("No secret number is specified");
+    secret_number
+        .trim()
+        .parse()
+        .expect("Secret number is not a number")
 }
 
 fn get_guess_number() -> Option<u32> {
@@ -56,6 +62,8 @@ fn get_guess_number() -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
 
     fn check(secret_number: Number, guess: Number, expected_result: GameResult) {
@@ -63,24 +71,40 @@ mod tests {
         assert_eq!(game_result, expected_result);
     }
 
-    #[test]
-    fn guessed_number_is_too_small() {
-        let secret_number = 10;
-        let guess = 5;
-        check(secret_number, guess, GameResult::TooSmall);
+    prop_compose! {
+        fn too_small_guessed_number()
+            (secret_number in any::<Number>())
+            (secret_number in Just(secret_number), guess in ..secret_number)
+            -> (Number, Number) {
+            (secret_number, guess)
+        }
+
     }
 
-    #[test]
-    fn guessed_number_is_too_big() {
-        let secret_number = 10;
-        let guess = 15;
-        check(secret_number, guess, GameResult::TooBig);
+    prop_compose! {
+        fn too_big_guessed_number()
+            (secret_number in any::<Number>())
+            (secret_number in Just(secret_number), guess in (secret_number + 1)..)
+            -> (Number, Number) {
+            (secret_number, guess)
+        }
     }
 
-    #[test]
-    fn guessed_number_is_correct() {
-        let secret_number = 10;
-        let guess = 10;
-        check(secret_number, guess, GameResult::Win);
+    proptest! {
+        #[test]
+        fn guessed_number_is_too_small((secret_number, guess) in too_small_guessed_number()) {
+            check(secret_number, guess, GameResult::TooSmall);
+        }
+
+        #[test]
+        fn guessed_number_is_too_big((secret_number, guess) in too_big_guessed_number()) {
+            check(secret_number, guess, GameResult::TooBig);
+        }
+
+        #[test]
+        fn guessed_number_is_correct(number: Number) {
+            check(number, number, GameResult::Win);
+        }
+
     }
 }
