@@ -103,7 +103,7 @@ pub struct InProcess(Vec<Coin>);
 #[derive(Debug)]
 pub struct VendingMachine<S> {
     products: HashMap<ProductName, ProductInfo>,
-    earned_money: HashMap<Coin, AmountOfCoins>,
+    coins: HashMap<Coin, AmountOfCoins>,
     state: S,
 }
 
@@ -111,7 +111,7 @@ impl Default for VendingMachine<Idle> {
     fn default() -> Self {
         Self {
             state: Idle,
-            earned_money: HashMap::from([
+            coins: HashMap::from([
                 (Coin::Fifty, 2),
                 (Coin::Twenty, 2),
                 (Coin::Ten, 2),
@@ -190,7 +190,7 @@ impl VendingMachine<Idle> {
         VendingMachine {
             state: InProcess(coins),
             products: self.products,
-            earned_money: self.earned_money,
+            coins: self.coins,
         }
     }
 }
@@ -231,7 +231,7 @@ impl VendingMachine<InProcess> {
             vending_machine: VendingMachine {
                 state: Idle,
                 products: self.products,
-                earned_money: self.earned_money,
+                coins: self.coins,
             },
             refund: self.state.0,
         }
@@ -249,7 +249,7 @@ impl VendingMachine<InProcess> {
         }
 
         for (coin, amount) in &inserted_coins_map {
-            self.earned_money
+            self.coins
                 .entry(*coin)
                 .and_modify(|c| *c += amount)
                 .or_insert(*amount);
@@ -271,7 +271,7 @@ impl VendingMachine<InProcess> {
                 }
                 Ordering::Greater => {
                     let available_amount_of_coins_of_current_denomination =
-                        self.earned_money.get_mut(&denomination);
+                        self.coins.get_mut(&denomination);
 
                     match available_amount_of_coins_of_current_denomination {
                         Some(available_amount_of_coins_of_current_denomination) => {
@@ -298,7 +298,7 @@ impl VendingMachine<InProcess> {
 
         if left_change > 0 {
             for (coin, amount) in inserted_coins_map {
-                *self.earned_money.get_mut(&coin).unwrap() -= amount;
+                *self.coins.get_mut(&coin).unwrap() -= amount;
             }
 
             return Err(PurchaseError::CannotGiveChange {
@@ -314,7 +314,7 @@ impl VendingMachine<InProcess> {
             vending_machine: VendingMachine {
                 state: Idle,
                 products: self.products,
-                earned_money: self.earned_money,
+                coins: self.coins,
             },
         })
     }
@@ -338,8 +338,7 @@ mod tests {
     fn should_successfully_return_product_and_change() {
         let vending_machine = VendingMachine::default();
 
-        let initial_amount_of_money =
-            get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+        let initial_amount_of_money = get_total_amount_of_coins_from_map(&vending_machine.coins);
 
         let vending_machine = vending_machine.insert_coins(vec![Coin::Fifty, Coin::Twenty]);
         let SuccessfulPurchase {
@@ -358,8 +357,7 @@ mod tests {
             9
         );
 
-        let final_amount_of_money =
-            get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+        let final_amount_of_money = get_total_amount_of_coins_from_map(&vending_machine.coins);
 
         assert_eq!(final_amount_of_money - initial_amount_of_money, 60);
     }
@@ -368,8 +366,7 @@ mod tests {
     fn should_return_error_when_not_enough_coins_were_inserted() {
         let vending_machine = VendingMachine::default();
 
-        let initial_amount_of_money =
-            get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+        let initial_amount_of_money = get_total_amount_of_coins_from_map(&vending_machine.coins);
 
         let vending_machine = vending_machine.insert_coins(vec![Coin::Fifty]);
         let error = vending_machine.get_product(Product::CocaCola).unwrap_err();
@@ -393,7 +390,7 @@ mod tests {
                 );
 
                 let final_amount_of_money =
-                    get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+                    get_total_amount_of_coins_from_map(&vending_machine.coins);
 
                 assert_eq!(initial_amount_of_money, final_amount_of_money);
             }
@@ -405,8 +402,7 @@ mod tests {
     fn should_return_error_when_product_is_not_available() {
         let mut vending_machine = VendingMachine::default();
 
-        let initial_amount_of_money =
-            get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+        let initial_amount_of_money = get_total_amount_of_coins_from_map(&vending_machine.coins);
 
         vending_machine
             .products
@@ -434,7 +430,7 @@ mod tests {
                 );
 
                 let final_amount_of_money =
-                    get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+                    get_total_amount_of_coins_from_map(&vending_machine.coins);
 
                 assert_eq!(initial_amount_of_money, final_amount_of_money);
             }
@@ -445,12 +441,11 @@ mod tests {
     #[test]
     fn should_return_error_when_cannot_give_change() {
         let vending_machine = VendingMachine {
-            earned_money: HashMap::from([(Coin::Twenty, 1)]),
+            coins: HashMap::from([(Coin::Twenty, 1)]),
             ..Default::default()
         };
 
-        let initial_amount_of_money =
-            get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+        let initial_amount_of_money = get_total_amount_of_coins_from_map(&vending_machine.coins);
 
         let vending_machine = vending_machine.insert_coins(vec![Coin::Fifty, Coin::Twenty]);
         let error = vending_machine.get_product(Product::CocaCola).unwrap_err();
@@ -472,7 +467,7 @@ mod tests {
                 );
 
                 let final_amount_of_money =
-                    get_total_amount_of_coins_from_map(&vending_machine.earned_money);
+                    get_total_amount_of_coins_from_map(&vending_machine.coins);
 
                 assert_eq!(initial_amount_of_money, final_amount_of_money);
 
