@@ -50,45 +50,22 @@ struct Debug {
     at: DateTime<Utc>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 enum RequestType {
+    #[serde(rename = "success")]
     Success,
+    #[serde(rename = "fail")]
     Fail,
-}
-
-impl Serialize for RequestType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            RequestType::Success => serializer.serialize_str("success"),
-            RequestType::Fail => serializer.serialize_str("fail"),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for RequestType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        match s.as_str() {
-            "success" => Ok(RequestType::Success),
-            "fail" => Ok(RequestType::Fail),
-            _ => Err(Error::custom(format!("Unexpected type: {}", s))),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Request {
+    #[serde(flatten)]
     r#type: RequestType,
     #[serde(skip_serializing_if = "Option::is_none")]
     stream: Option<Stream>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    gifts: Option<Vec<Gift>>,
+    gifts: Vec<Gift>,
     debug: Debug,
 }
 
@@ -171,7 +148,7 @@ mod tests {
                     description: String::from("test private tariff"),
                 },
             }),
-            gifts: Some(vec![
+            gifts: vec![
                 Gift {
                     id: 1,
                     price: 2,
@@ -182,7 +159,7 @@ mod tests {
                     price: 3,
                     description: String::from("Gift 2"),
                 },
-            ]),
+            ],
             debug: Debug {
                 duration: "234ms".parse::<humantime::Duration>().unwrap().into(),
                 at: DateTime::parse_from_rfc3339("2019-06-28T08:35:46+00:00")
