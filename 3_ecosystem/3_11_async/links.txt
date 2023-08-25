@@ -1,0 +1,3 @@
+https://docs.rs/futures/latest/futures/future/fn.join_all.html
+https://stackoverflow.com/questions/63589668/how-to-tokiojoin-multiple-tasks
+https://crates.io/crates/num_cpus
