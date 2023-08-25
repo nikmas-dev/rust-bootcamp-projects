@@ -31,9 +31,14 @@ fn main() {
 
         for _ in 0..2 {
             scope.spawn(|| loop {
-                let matrix = consumer.recv().unwrap();
-                let sum = calc_matrix_sum(&matrix);
-                println!("sum: {}", sum);
+                let matrix = consumer.recv();
+                match matrix {
+                    Ok(matrix) => {
+                        let sum = calc_matrix_sum(&matrix);
+                        println!("sum: {}", sum);
+                    }
+                    Err(_) => break,
+                }
             });
         }
     });
