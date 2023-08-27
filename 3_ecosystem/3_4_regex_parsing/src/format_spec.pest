@@ -1,0 +1,10 @@
+format_spec = { (fill? ~ align)? ~ sign? ~ "#" ? ~ "0" ? ~ width? ~ precision? ~ stype }
+fill = _{ ASCII_ALPHA }
+align = _{ "<" | "^" | ">" }
+sign = { "+" | "-" }
+width = { integer | parameter }
+precision = { "." ~ (integer ~ "$" | integer | "*") }
+stype = _{ "?" | "x?" | "X?" | identifier }
+identifier = _{ "_" ? ~ ASCII_ALPHA * }
+integer = { ASCII_DIGIT+ }
+parameter = { integer ~ "$" }
