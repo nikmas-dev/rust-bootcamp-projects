@@ -3,3 +3,15 @@ name = "step_3_6"
 version = "0.1.0"
 edition = "2021"
 publish = false
+
+[dependencies]
+serde = { version = "1.0.185", features = ["derive"]}
+serde_json = "1.0.105"
+serde_yaml = "0.9.25"
+toml = "0.7.6"
+uuid = { version = "1.4.1", features = ["serde", "v4"] }
+url = { version = "2.4.0", features = ["serde"] }
+duration-string = { version = "0.3.0", features = ["serde"] }
+chrono = { version = "0.4.26", features = ["serde"] }
+humantime = "2.1.0"
+humantime-serde = "1.1.1"
