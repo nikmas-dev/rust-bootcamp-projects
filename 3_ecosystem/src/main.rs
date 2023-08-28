@@ -1,13 +1,14 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fs;
+use std::fmt::{Debug, Formatter};
 use std::io::{BufWriter, Cursor};
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use config::builder::BuilderState;
-use config::{Config, ConfigBuilder, FileFormat};
+use config::{Config, ConfigBuilder, ConfigError, FileFormat, Map, Source, Value};
 use futures::future;
 use image::codecs::jpeg::JpegEncoder;
 use image::{io::Reader as ImageReader, DynamicImage, ImageFormat};
@@ -39,13 +40,17 @@ struct Cli {
     #[arg(long)]
     output_dir: Option<String>,
 
-    #[arg(long)]
-    quality: Option<Quality>,
+    #[arg(
+        long,
+        default_value_t = DEFAULT_QUALITY,
+        value_parser = clap::value_parser!(Quality).range(1..=100)
+    )]
+    quality: Quality,
 }
 
 #[derive(Debug, Deserialize)]
 struct AppConfig {
-    images: Vec<String>,
+    images: Option<Vec<String>>,
     max_threads: NumberOfThreads,
     output_dir: PathBuf,
     quality: Quality,
@@ -79,10 +84,16 @@ impl<St: BuilderState> AddCustomConfigs for ConfigBuilder<St> {
         Ok(self
             .set_override_option("max_threads", cli.max_threads.map(|v| v.to_string()))?
             .set_override_option("output_dir", cli.output_dir)?
-            .set_override_option("quality", cli.quality.map(|v| v.to_string()))?)
+            .set_override("quality", cli.quality.to_string())?)
     }
 }
 
+fn get_images_from_stdin() -> Result<Vec<String>> {
+    println!("Please enter the images you want to optimize (one per line):");
+    Ok(io::stdin().lines().collect::<Result<_, _>>()?)
+}
+
+// the images field is always Some after the config build
 fn build_config() -> Result<AppConfig> {
     let cli = Cli::parse();
 
@@ -98,33 +109,29 @@ fn build_config() -> Result<AppConfig> {
         .add_cli_config(cli)?
         .build()?;
 
-    Ok(config.try_deserialize::<AppConfig>()?)
+    let mut config = config.try_deserialize::<AppConfig>()?;
+    if config.images.is_none() {
+        config.images = Some(get_images_from_stdin()?);
+    }
+
+    Ok(config)
 }
 
 type ImagePath = String;
 
 #[derive(Debug)]
 enum ImageSource {
-    LocalFile(ImagePath),
-    RemoteUrl(ImagePath),
-}
-
-impl ImageSource {
-    fn get_image_path(&self) -> &ImagePath {
-        match self {
-            ImageSource::LocalFile(image_path) => image_path,
-            ImageSource::RemoteUrl(image_path) => image_path,
-        }
-    }
+    LocalFile(PathBuf),
+    RemoteUrl(Url),
 }
 
 fn parse_image_source_by_path(image_path: ImagePath) -> Result<ImageSource> {
     if Path::new(&image_path).is_file() {
-        return Ok(ImageSource::LocalFile(image_path));
+        return Ok(ImageSource::LocalFile(PathBuf::from(image_path)));
     }
 
-    if Url::parse(&image_path).is_ok() {
-        return Ok(ImageSource::RemoteUrl(image_path));
+    if let Ok(url) = Url::parse(&image_path) {
+        return Ok(ImageSource::RemoteUrl(url));
     }
 
     bail!("Unknown image source of: {}", image_path);
@@ -142,8 +149,8 @@ async fn get_image_from_source(image_source: &ImageSource) -> Result<Image> {
             let img = img_reader.decode()?;
             (img, format)
         }
-        ImageSource::RemoteUrl(image_path) => {
-            let response = reqwest::get(image_path).await?;
+        ImageSource::RemoteUrl(image_url) => {
+            let response = reqwest::get(image_url.path()).await?;
             let img_reader =
                 ImageReader::new(Cursor::new(response.bytes().await?)).with_guessed_format()?;
             let format = img_reader.format();
@@ -165,13 +172,19 @@ async fn get_image_from_source(image_source: &ImageSource) -> Result<Image> {
     }
 }
 
-fn get_file_name_by_img_source(img_source: &ImageSource) -> Cow<str> {
-    match &img_source {
-        ImageSource::LocalFile(img_path) => {
-            Cow::Borrowed(Path::new(img_path).file_name().unwrap().to_str().unwrap())
+fn get_file_name_by_img_source(img_source: &ImageSource) -> Result<Cow<str>> {
+    Ok(match &img_source {
+        ImageSource::LocalFile(img_path) => Cow::Borrowed(
+            img_path
+                .file_name()
+                .with_context(|| format!("file_name of {:?} is None", img_path))?
+                .to_str()
+                .with_context(|| format!("OsStr.to_str() of {:?} is None", img_path))?,
+        ),
+        ImageSource::RemoteUrl(img_path) => {
+            Cow::Owned(sanitise_file_name::sanitise(img_path.as_str()))
         }
-        ImageSource::RemoteUrl(img_path) => Cow::Owned(sanitise_file_name::sanitise(img_path)),
-    }
+    })
 }
 
 fn get_file_extension_from_image(image: &Image) -> &str {
@@ -188,7 +201,7 @@ async fn optimize_img(
     let image_source = parse_image_source_by_path(img_path)?;
     let image = get_image_from_source(&image_source).await?;
 
-    let file_name = get_file_name_by_img_source(&image_source);
+    let file_name = get_file_name_by_img_source(&image_source)?;
 
     let file_ext = get_file_extension_from_image(&image);
 
@@ -228,7 +241,7 @@ fn main() -> Result<()> {
         .enable_all()
         .build()?;
 
-    let tasks = config.images.into_iter().map(|img| async {
+    let tasks = config.images.unwrap().into_iter().map(|img| async {
         let start = Instant::now();
         let result = optimize_img(img, config.quality, &config.output_dir).await;
         info!(
@@ -238,7 +251,7 @@ fn main() -> Result<()> {
         result
     });
 
-    runtime.block_on(async { future::try_join_all(tasks).await })?;
+    runtime.block_on(future::try_join_all(tasks))?;
 
     Ok(())
 }
