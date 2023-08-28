@@ -3,3 +3,11 @@ name = "step_3_11"
 version = "0.1.0"
 edition = "2021"
 publish = false
+
+[dependencies]
+clap = { version = "4.4.0", features = ["derive"] }
+reqwest = "0.11.20"
+tokio = { version = "1.32.0", features = ["full"] }
+sanitise-file-name = "1.0.0"
+num_cpus = "1.16.0"
+futures = "0.3.28"
