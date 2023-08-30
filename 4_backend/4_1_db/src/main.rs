@@ -40,7 +40,6 @@ enum UserCommand {
         id: UserId,
     },
     GetById {
-        #[arg(long)]
         id: UserId,
     },
     GetAll,
@@ -85,7 +84,6 @@ enum RoleCommand {
         slug: RoleSlug,
     },
     GetBySlug {
-        #[arg(long)]
         slug: RoleSlug,
     },
     GetAll,
