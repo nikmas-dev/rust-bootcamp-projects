@@ -2,13 +2,18 @@ use std::env;
 
 use async_trait::async_trait;
 use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
+use sqlx::{Error, PgPool};
 
 use crate::models::{
     AllUserRoles, GetUserResult, Role, RoleName, RolePermissions, User, UserData, UserId, UserName,
 };
-use crate::repositories::defs::role::RoleRepository;
-use crate::repositories::defs::user::UserRepository;
+use crate::repositories::defs::role::{
+    DeleteRoleError, GetRoleError, RoleRepository, UpdateRoleError,
+};
+use crate::repositories::defs::user::{
+    AddRoleToUserError, DeleteUserError, GetUserError, RemoveRoleFromUserError, UpdateUserError,
+    UserRepository,
+};
 
 const MAX_POOL_SIZE: u32 = 20;
 const DATABASE_URL_ENV: &str = "DATABASE_URL";
@@ -46,8 +51,8 @@ impl UserRepository for PostgresRepositoryImpl {
         .await?)
     }
 
-    async fn update_user_name(&self, id: &UserId, name: UserName) -> anyhow::Result<User> {
-        Ok(sqlx::query_as!(
+    async fn update_user_name(&self, id: &UserId, name: UserName) -> Result<User, UpdateUserError> {
+        sqlx::query_as!(
             User,
             r#"
             UPDATE "user"
@@ -59,11 +64,15 @@ impl UserRepository for PostgresRepositoryImpl {
             id
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| match err {
+            Error::RowNotFound => UpdateUserError::NotFound { id: id.clone() },
+            _ => UpdateUserError::Unknown(err.into()),
+        })
     }
 
-    async fn delete_user(&self, id: &UserId) -> anyhow::Result<User> {
-        Ok(sqlx::query_as!(
+    async fn delete_user(&self, id: &UserId) -> Result<User, DeleteUserError> {
+        sqlx::query_as!(
             User,
             r#"
             DELETE FROM "user"
@@ -73,11 +82,15 @@ impl UserRepository for PostgresRepositoryImpl {
             id
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| match err {
+            Error::RowNotFound => DeleteUserError::NotFound { id: id.clone() },
+            _ => DeleteUserError::Unknown(err.into()),
+        })
     }
 
-    async fn get_user_by_id(&self, id: &UserId) -> anyhow::Result<GetUserResult> {
-        Ok(sqlx::query_as!(
+    async fn get_user_by_id(&self, id: &UserId) -> Result<GetUserResult, GetUserError> {
+        sqlx::query_as!(
             GetUserResult,
             r#"
             SELECT
@@ -93,7 +106,11 @@ impl UserRepository for PostgresRepositoryImpl {
             id
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| match err {
+            Error::RowNotFound => GetUserError::NotFound { id: id.clone() },
+            _ => GetUserError::Unknown(err.into()),
+        })
     }
 
     async fn get_all_users(&self) -> anyhow::Result<Vec<GetUserResult>> {
@@ -114,8 +131,24 @@ impl UserRepository for PostgresRepositoryImpl {
         .await?)
     }
 
-    async fn add_role_to_user(&self, user_id: &UserId, role_slug: &str) -> anyhow::Result<()> {
-        Ok(sqlx::query!(
+    async fn add_role_to_user(
+        &self,
+        user_id: &UserId,
+        role_slug: &str,
+    ) -> Result<(), AddRoleToUserError> {
+        if let Err(err) = self.get_user_by_id(user_id).await {
+            if let GetUserError::NotFound { id } = err {
+                return Err(AddRoleToUserError::UserNotFound { id });
+            }
+        }
+
+        if let Err(err) = self.get_role_by_slug(role_slug).await {
+            if let GetRoleError::NotFound { slug } = err {
+                return Err(AddRoleToUserError::RoleNotFound { slug });
+            }
+        }
+
+        sqlx::query!(
             r#"
             INSERT INTO user_role(user_id, role_slug)
             VALUES ($1, $2)
@@ -125,11 +158,28 @@ impl UserRepository for PostgresRepositoryImpl {
         )
         .execute(&self.pool)
         .await
-        .map(|_| ())?)
+        .map(|_| ())
+        .map_err(|err| AddRoleToUserError::Unknown(err.into()))
     }
 
-    async fn remove_role_from_user(&self, user_id: &UserId, role_slug: &str) -> anyhow::Result<()> {
-        Ok(sqlx::query!(
+    async fn remove_role_from_user(
+        &self,
+        user_id: &UserId,
+        role_slug: &str,
+    ) -> Result<(), RemoveRoleFromUserError> {
+        if let Err(err) = self.get_user_by_id(user_id).await {
+            if let GetUserError::NotFound { id } = err {
+                return Err(RemoveRoleFromUserError::UserNotFound { id });
+            }
+        }
+
+        if let Err(err) = self.get_role_by_slug(role_slug).await {
+            if let GetRoleError::NotFound { slug } = err {
+                return Err(RemoveRoleFromUserError::RoleNotFound { slug });
+            }
+        }
+
+        sqlx::query!(
             r#"
             DELETE FROM user_role
             WHERE user_id = $1 AND role_slug = $2
@@ -139,7 +189,8 @@ impl UserRepository for PostgresRepositoryImpl {
         )
         .execute(&self.pool)
         .await
-        .map(|_| ())?)
+        .map(|_| ())
+        .map_err(|err| RemoveRoleFromUserError::Unknown(err.into()))
     }
 }
 
@@ -161,8 +212,8 @@ impl RoleRepository for PostgresRepositoryImpl {
         .await?)
     }
 
-    async fn update_role_name(&self, slug: &str, name: RoleName) -> anyhow::Result<Role> {
-        Ok(sqlx::query_as!(
+    async fn update_role_name(&self, slug: &str, name: RoleName) -> Result<Role, UpdateRoleError> {
+        sqlx::query_as!(
             Role,
             r#"
             UPDATE role
@@ -174,15 +225,21 @@ impl RoleRepository for PostgresRepositoryImpl {
             slug
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| match err {
+            Error::RowNotFound => UpdateRoleError::NotFound {
+                slug: slug.to_owned(),
+            },
+            _ => UpdateRoleError::Unknown(err.into()),
+        })
     }
 
     async fn update_role_permissions(
         &self,
         slug: &str,
         permissions: RolePermissions,
-    ) -> anyhow::Result<Role> {
-        Ok(sqlx::query_as!(
+    ) -> Result<Role, UpdateRoleError> {
+        sqlx::query_as!(
             Role,
             r#"
             UPDATE role
@@ -194,11 +251,17 @@ impl RoleRepository for PostgresRepositoryImpl {
             slug
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| match err {
+            Error::RowNotFound => UpdateRoleError::NotFound {
+                slug: slug.to_owned(),
+            },
+            _ => UpdateRoleError::Unknown(err.into()),
+        })
     }
 
-    async fn delete_role(&self, slug: &str) -> anyhow::Result<Role> {
-        Ok(sqlx::query_as!(
+    async fn delete_role(&self, slug: &str) -> Result<Role, DeleteRoleError> {
+        sqlx::query_as!(
             Role,
             r#"
             DELETE FROM role
@@ -208,11 +271,17 @@ impl RoleRepository for PostgresRepositoryImpl {
             slug
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| match err {
+            Error::RowNotFound => DeleteRoleError::NotFound {
+                slug: slug.to_owned(),
+            },
+            _ => DeleteRoleError::Unknown(err.into()),
+        })
     }
 
-    async fn get_role_by_slug(&self, slug: &str) -> anyhow::Result<Role> {
-        Ok(sqlx::query_as!(
+    async fn get_role_by_slug(&self, slug: &str) -> Result<Role, GetRoleError> {
+        sqlx::query_as!(
             Role,
             r#"
             SELECT slug, name, permissions
@@ -222,7 +291,13 @@ impl RoleRepository for PostgresRepositoryImpl {
             slug
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| match err {
+            Error::RowNotFound => GetRoleError::NotFound {
+                slug: slug.to_owned(),
+            },
+            _ => GetRoleError::Unknown(err.into()),
+        })
     }
 
     async fn get_all_roles(&self) -> anyhow::Result<Vec<Role>> {

@@ -1,42 +1,36 @@
-use clap::{Parser, Subcommand};
-
 use crate::commands::{role, user};
 use crate::models::{Role, RoleName, RolePermissions, RoleSlug, UserData, UserId, UserName};
+use crate::repositories::defs::role::RoleRepository;
+use crate::repositories::defs::user::UserRepository;
+use axum::extract::State;
+use axum::response::IntoResponse;
+use axum::{routing, Json, Router, Server};
+use clap::{Parser, Subcommand};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+
 use crate::repositories::impls::postgres::PostgresRepositoryImpl;
 
 mod commands;
 mod models;
 mod repositories;
 
-#[derive(Parser)]
-#[command(about)]
-struct Cli {
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
+#[derive(Deserialize)]
 enum Command {
-    #[command(subcommand)]
     User(UserCommand),
-    #[command(subcommand)]
     Role(RoleCommand),
 }
 
-#[derive(Subcommand)]
+#[derive(Deserialize)]
 enum UserCommand {
     Create {
-        #[arg(long)]
         name: UserName,
     },
     UpdateName {
-        #[arg(long)]
         id: UserId,
-        #[arg(long)]
         new_name: UserName,
     },
     Delete {
-        #[arg(long)]
         id: UserId,
     },
     GetById {
@@ -44,43 +38,31 @@ enum UserCommand {
     },
     GetAll,
     AddRole {
-        #[arg(long)]
         user_id: UserId,
-        #[arg(long)]
         role_slug: RoleSlug,
     },
     RemoveRole {
-        #[arg(long)]
         user_id: UserId,
-        #[arg(long)]
         role_slug: RoleSlug,
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Deserialize)]
 enum RoleCommand {
     Create {
-        #[arg(long)]
         slug: RoleSlug,
-        #[arg(long)]
         name: RoleName,
-        #[arg(long)]
         permissions: RolePermissions,
     },
     UpdateName {
-        #[arg(long)]
         slug: RoleSlug,
-        #[arg(long)]
         new_name: RoleName,
     },
     UpdatePermissions {
-        #[arg(long)]
         slug: RoleSlug,
-        #[arg(long)]
         new_permissions: RolePermissions,
     },
     Delete {
-        #[arg(long)]
         slug: RoleSlug,
     },
     GetBySlug {
@@ -93,40 +75,55 @@ enum RoleCommand {
 async fn main() {
     dotenv::from_path("4_backend/4_2_http/.env").unwrap();
 
-    let cli = Cli::parse();
+    let repo = Arc::new(PostgresRepositoryImpl::new().await.unwrap());
 
-    let repo = PostgresRepositoryImpl::new().await.unwrap();
+    let app = Router::new()
+        .route("/execute-command", routing::post(execute_command))
+        .with_state(repo);
 
-    match cli.command {
+    Server::bind(&"0.0.0.0:3008".parse().unwrap())
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
+
+async fn execute_command<R>(
+    State(repo): State<Arc<R>>,
+    Json(command): Json<Command>,
+) -> impl IntoResponse
+where
+    R: UserRepository + RoleRepository,
+{
+    match command {
         Command::User(user_command) => match user_command {
             UserCommand::Create { name } => {
-                let created_user = user::create_user(UserData { name }, &repo).await.unwrap();
+                let created_user = user::create_user(UserData { name }, repo).await.unwrap();
                 println!("user is successfully created: {:?}", created_user);
             }
             UserCommand::UpdateName { id, new_name } => {
-                let updated_user = user::update_user_name(&id, new_name, &repo).await.unwrap();
+                let updated_user = user::update_user_name(&id, new_name, repo).await.unwrap();
                 println!("user is successfully updated: {:?}", updated_user);
             }
             UserCommand::Delete { id } => {
-                let deleted_user = user::delete_user(&id, &repo).await.unwrap();
+                let deleted_user = user::delete_user(&id, repo).await.unwrap();
                 println!("user is successfully deleted: {:?}", deleted_user);
             }
             UserCommand::GetById { id } => {
-                let user = user::get_user_by_id(&id, &repo).await.unwrap();
+                let user = user::get_user_by_id(&id, repo).await.unwrap();
                 println!("{:?}", user);
             }
             UserCommand::GetAll => {
-                let users = user::get_all_users(&repo).await.unwrap();
+                let users = user::get_all_users(repo).await.unwrap();
                 println!("{:?}", users);
             }
             UserCommand::AddRole { user_id, role_slug } => {
-                user::add_role_to_user(&user_id, &role_slug, &repo)
+                user::add_role_to_user(&user_id, &role_slug, repo)
                     .await
                     .unwrap();
                 println!("role is successfully added to user");
             }
             UserCommand::RemoveRole { user_id, role_slug } => {
-                user::remove_role_from_user(&user_id, &role_slug, &repo)
+                user::remove_role_from_user(&user_id, &role_slug, repo)
                     .await
                     .unwrap();
                 println!("role is successfully removed from user");
@@ -144,23 +141,21 @@ async fn main() {
                         name,
                         permissions,
                     },
-                    &repo,
+                    repo,
                 )
                 .await
                 .unwrap();
                 println!("role is successfully created: {:?}", created_role);
             }
             RoleCommand::UpdateName { slug, new_name } => {
-                let updated_role = role::update_role_name(&slug, new_name, &repo)
-                    .await
-                    .unwrap();
+                let updated_role = role::update_role_name(&slug, new_name, repo).await.unwrap();
                 println!("role name is successfully updated: {:?}", updated_role);
             }
             RoleCommand::UpdatePermissions {
                 slug,
                 new_permissions,
             } => {
-                let updated_role = role::update_role_permissions(&slug, new_permissions, &repo)
+                let updated_role = role::update_role_permissions(&slug, new_permissions, repo)
                     .await
                     .unwrap();
                 println!(
@@ -169,15 +164,15 @@ async fn main() {
                 );
             }
             RoleCommand::Delete { slug } => {
-                let deleted_role = role::delete_role(&slug, &repo).await.unwrap();
+                let deleted_role = role::delete_role(&slug, repo).await.unwrap();
                 println!("role is successfully deleted: {:?}", deleted_role);
             }
             RoleCommand::GetBySlug { slug } => {
-                let role = role::get_role_by_slug(&slug, &repo).await.unwrap();
+                let role = role::get_role_by_slug(&slug, repo).await.unwrap();
                 println!("{:?}", role);
             }
             RoleCommand::GetAll => {
-                let roles = role::get_all_roles(&repo).await.unwrap();
+                let roles = role::get_all_roles(repo).await.unwrap();
                 println!("{:?}", roles);
             }
         },

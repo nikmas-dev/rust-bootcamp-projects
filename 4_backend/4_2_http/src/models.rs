@@ -1,8 +1,10 @@
+use serde::Serialize;
+
 pub type RoleSlug = String;
 pub type RoleName = String;
 pub type RolePermissions = String;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct Role {
     pub slug: RoleSlug,
     pub name: RoleName,
@@ -12,7 +14,7 @@ pub struct Role {
 pub type UserId = i64;
 pub type UserName = String;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct User {
     pub id: UserId,
     pub name: UserName,
