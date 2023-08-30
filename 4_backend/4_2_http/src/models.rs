@@ -27,7 +27,7 @@ pub struct UserData {
 
 pub type AllUserRoles = Vec<RoleName>;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct GetUserResult {
     pub id: UserId,
     pub name: UserName,

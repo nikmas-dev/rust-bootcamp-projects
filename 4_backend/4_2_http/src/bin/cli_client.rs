@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
-use sqlx::postgres::PgPoolOptions;
-use std::env;
+use reqwest::Client;
+use serde::Serialize;
+use serde_json::Value;
+
+const SERVER_URL: &str = "http://localhost:3008/execute-command";
 
 type UserName = String;
 type UserId = i64;
@@ -15,7 +18,7 @@ struct Cli {
     command: Command,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Serialize)]
 enum Command {
     #[command(subcommand)]
     User(UserCommand),
@@ -23,7 +26,7 @@ enum Command {
     Role(RoleCommand),
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Serialize)]
 enum UserCommand {
     Create {
         #[arg(long)]
@@ -57,7 +60,7 @@ enum UserCommand {
     },
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Serialize)]
 enum RoleCommand {
     Create {
         #[arg(long)]
@@ -91,29 +94,16 @@ enum RoleCommand {
 
 #[tokio::main]
 async fn main() {
-    // let cli = Cli::parse();
-    dotenv::from_path("4_backend/4_2_http/.env").unwrap();
-
-    let db_url = env::var("DATABASE_URL").unwrap();
-
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&db_url)
+    let cli = Cli::parse();
+    let response = Client::new()
+        .post(SERVER_URL)
+        .json(&cli.command)
+        .send()
         .await
         .unwrap();
 
-    let result = sqlx::query!(
-        r#"
-            UPDATE "user"
-            SET name = $1
-            WHERE id = $2
-            RETURNING id, name
-            "#,
-        "new",
-        7
-    )
-    .fetch_one(&pool)
-    .await;
-
-    println!("{:?}", result);
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
+    );
 }

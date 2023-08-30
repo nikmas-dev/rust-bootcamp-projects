@@ -1,12 +1,14 @@
 use crate::commands::{role, user};
-use crate::models::{Role, RoleName, RolePermissions, RoleSlug, UserData, UserId, UserName};
+use crate::models::{Role, RoleName, RolePermissions, RoleSlug, User, UserData, UserId, UserName};
 use crate::repositories::defs::role::RoleRepository;
-use crate::repositories::defs::user::UserRepository;
+use crate::repositories::defs::user::{UpdateUserError, UserRepository};
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{routing, Json, Router, Server};
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::sync::Arc;
 
 use crate::repositories::impls::postgres::PostgresRepositoryImpl;
@@ -96,37 +98,24 @@ where
 {
     match command {
         Command::User(user_command) => match user_command {
-            UserCommand::Create { name } => {
-                let created_user = user::create_user(UserData { name }, repo).await.unwrap();
-                println!("user is successfully created: {:?}", created_user);
-            }
-            UserCommand::UpdateName { id, new_name } => {
-                let updated_user = user::update_user_name(&id, new_name, repo).await.unwrap();
-                println!("user is successfully updated: {:?}", updated_user);
-            }
-            UserCommand::Delete { id } => {
-                let deleted_user = user::delete_user(&id, repo).await.unwrap();
-                println!("user is successfully deleted: {:?}", deleted_user);
-            }
-            UserCommand::GetById { id } => {
-                let user = user::get_user_by_id(&id, repo).await.unwrap();
-                println!("{:?}", user);
-            }
-            UserCommand::GetAll => {
-                let users = user::get_all_users(repo).await.unwrap();
-                println!("{:?}", users);
-            }
+            UserCommand::Create { name } => user::create_user(UserData { name }, repo)
+                .await
+                .into_response(),
+            UserCommand::UpdateName { id, new_name } => user::update_user_name(&id, new_name, repo)
+                .await
+                .into_response(),
+            UserCommand::Delete { id } => user::delete_user(&id, repo).await.into_response(),
+            UserCommand::GetById { id } => user::get_user_by_id(&id, repo).await.into_response(),
+            UserCommand::GetAll => user::get_all_users(repo).await.into_response(),
             UserCommand::AddRole { user_id, role_slug } => {
                 user::add_role_to_user(&user_id, &role_slug, repo)
                     .await
-                    .unwrap();
-                println!("role is successfully added to user");
+                    .into_response()
             }
             UserCommand::RemoveRole { user_id, role_slug } => {
                 user::remove_role_from_user(&user_id, &role_slug, repo)
                     .await
-                    .unwrap();
-                println!("role is successfully removed from user");
+                    .into_response()
             }
         },
         Command::Role(role_command) => match role_command {
@@ -134,47 +123,32 @@ where
                 slug,
                 name,
                 permissions,
-            } => {
-                let created_role = role::create_role(
-                    Role {
-                        slug,
-                        name,
-                        permissions,
-                    },
-                    repo,
-                )
-                .await
-                .unwrap();
-                println!("role is successfully created: {:?}", created_role);
-            }
+            } => role::create_role(
+                Role {
+                    slug,
+                    name,
+                    permissions,
+                },
+                repo,
+            )
+            .await
+            .into_response(),
             RoleCommand::UpdateName { slug, new_name } => {
-                let updated_role = role::update_role_name(&slug, new_name, repo).await.unwrap();
-                println!("role name is successfully updated: {:?}", updated_role);
+                role::update_role_name(&slug, new_name, repo)
+                    .await
+                    .into_response()
             }
             RoleCommand::UpdatePermissions {
                 slug,
                 new_permissions,
-            } => {
-                let updated_role = role::update_role_permissions(&slug, new_permissions, repo)
-                    .await
-                    .unwrap();
-                println!(
-                    "role permissions are successfully updated: {:?}",
-                    updated_role
-                );
-            }
-            RoleCommand::Delete { slug } => {
-                let deleted_role = role::delete_role(&slug, repo).await.unwrap();
-                println!("role is successfully deleted: {:?}", deleted_role);
-            }
+            } => role::update_role_permissions(&slug, new_permissions, repo)
+                .await
+                .into_response(),
+            RoleCommand::Delete { slug } => role::delete_role(&slug, repo).await.into_response(),
             RoleCommand::GetBySlug { slug } => {
-                let role = role::get_role_by_slug(&slug, repo).await.unwrap();
-                println!("{:?}", role);
+                role::get_role_by_slug(&slug, repo).await.into_response()
             }
-            RoleCommand::GetAll => {
-                let roles = role::get_all_roles(repo).await.unwrap();
-                println!("{:?}", roles);
-            }
+            RoleCommand::GetAll => role::get_all_roles(repo).await.into_response(),
         },
     }
 }
