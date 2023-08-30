@@ -2784,6 +2784,7 @@ dependencies = [
  "clap",
  "dotenv",
  "sqlx",
+ "thiserror",
  "tokio",
 ]
 
