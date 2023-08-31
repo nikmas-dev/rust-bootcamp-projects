@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 pub type RoleSlug = String;
 pub type RoleName = String;
@@ -30,7 +31,7 @@ pub struct UserDTO {
     pub name: UserName,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct UserDataDTO {
     pub name: UserName,
 }
@@ -42,7 +43,7 @@ pub struct UpdateUserNameDTO {
 
 pub type AllUserRoles = Vec<RoleName>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct GetUserResultDTO {
     pub id: UserId,
     pub name: UserName,
