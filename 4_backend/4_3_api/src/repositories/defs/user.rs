@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use thiserror::Error;
 
-use crate::models::{GetUserResult, RoleSlug, User, UserData, UserId, UserName};
+use crate::models::{
+    GetUserResultDTO, RoleSlug, UpdateUserNameDTO, UserDTO, UserDataDTO, UserId, UserName,
+};
 
 #[derive(Error, Debug)]
 pub enum UpdateUserError {
@@ -59,16 +61,16 @@ pub enum RemoveRoleFromUserError {
 
 #[async_trait]
 pub trait UserRepository {
-    async fn create_user(&self, data: UserData) -> anyhow::Result<User>;
+    async fn create_user(&self, data: UserDataDTO) -> anyhow::Result<UserDTO>;
     async fn update_user_name(
         &self,
         id: &UserId,
-        new_name: UserName,
-    ) -> Result<User, UpdateUserError>;
-    async fn delete_user(&self, id: &UserId) -> Result<User, DeleteUserError>;
+        data: UpdateUserNameDTO,
+    ) -> Result<UserDTO, UpdateUserError>;
+    async fn delete_user(&self, id: &UserId) -> Result<UserDTO, DeleteUserError>;
 
-    async fn get_user_by_id(&self, id: &UserId) -> Result<GetUserResult, GetUserError>;
-    async fn get_all_users(&self) -> anyhow::Result<Vec<GetUserResult>>;
+    async fn get_user_by_id(&self, id: &UserId) -> Result<GetUserResultDTO, GetUserError>;
+    async fn get_all_users(&self) -> anyhow::Result<Vec<GetUserResultDTO>>;
 
     async fn add_role_to_user(
         &self,

@@ -1,14 +1,20 @@
-use crate::models::{Role, RoleName, RolePermissions};
+use crate::models::{
+    RoleDTO, RoleName, RolePermissions, RoleSlug, UpdateRoleNameDTO, UpdateRolePermissionsDTO,
+};
 use crate::repositories::defs::role::{
     DeleteRoleError, GetRoleError, RoleRepository, UpdateRoleError,
 };
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde_json::json;
 use std::sync::Arc;
 
-pub async fn create_role(data: Role, repo: Arc<impl RoleRepository>) -> impl IntoResponse {
+pub async fn create_role(
+    State(repo): State<Arc<impl RoleRepository>>,
+    Json(data): Json<RoleDTO>,
+) -> impl IntoResponse {
     match repo.create_role(data).await {
         Ok(role) => {
             println!("role is successfully created: {:?}", role);
@@ -28,11 +34,11 @@ pub async fn create_role(data: Role, repo: Arc<impl RoleRepository>) -> impl Int
 }
 
 pub async fn update_role_name(
-    slug: &str,
-    new_name: RoleName,
-    repo: Arc<impl RoleRepository>,
+    State(repo): State<Arc<impl RoleRepository>>,
+    Path(slug): Path<RoleSlug>,
+    Json(data): Json<UpdateRoleNameDTO>,
 ) -> impl IntoResponse {
-    match repo.update_role_name(slug, new_name).await {
+    match repo.update_role_name(&slug, data).await {
         Ok(role) => {
             println!("role name is successfully updated: {:?}", role);
             (StatusCode::OK, Json(role)).into_response()
@@ -60,11 +66,11 @@ pub async fn update_role_name(
 }
 
 pub async fn update_role_permissions(
-    slug: &str,
-    new_permissions: RolePermissions,
-    repo: Arc<impl RoleRepository>,
+    State(repo): State<Arc<impl RoleRepository>>,
+    Path(slug): Path<RoleSlug>,
+    Json(data): Json<UpdateRolePermissionsDTO>,
 ) -> impl IntoResponse {
-    match repo.update_role_permissions(slug, new_permissions).await {
+    match repo.update_role_permissions(&slug, data).await {
         Ok(role) => {
             println!("role permissions are successfully updated: {:?}", role);
             (StatusCode::OK, Json(role)).into_response()
@@ -91,8 +97,11 @@ pub async fn update_role_permissions(
     }
 }
 
-pub async fn delete_role(slug: &str, repo: Arc<impl RoleRepository>) -> impl IntoResponse {
-    match repo.delete_role(slug).await {
+pub async fn delete_role(
+    State(repo): State<Arc<impl RoleRepository>>,
+    Path(slug): Path<RoleSlug>,
+) -> impl IntoResponse {
+    match repo.delete_role(&slug).await {
         Ok(deleted_role) => {
             println!("role is successfully deleted: {:?}", deleted_role);
             (StatusCode::OK, Json(deleted_role)).into_response()
@@ -126,8 +135,11 @@ pub async fn delete_role(slug: &str, repo: Arc<impl RoleRepository>) -> impl Int
     }
 }
 
-pub async fn get_role_by_slug(slug: &str, repo: Arc<impl RoleRepository>) -> impl IntoResponse {
-    match repo.get_role_by_slug(slug).await {
+pub async fn get_role_by_slug(
+    State(repo): State<Arc<impl RoleRepository>>,
+    Path(slug): Path<RoleSlug>,
+) -> impl IntoResponse {
+    match repo.get_role_by_slug(&slug).await {
         Ok(role) => {
             println!("role is successfully retrieved: {:?}", role);
             (StatusCode::OK, Json(role)).into_response()
@@ -154,7 +166,7 @@ pub async fn get_role_by_slug(slug: &str, repo: Arc<impl RoleRepository>) -> imp
     }
 }
 
-pub async fn get_all_roles(repo: Arc<impl RoleRepository>) -> impl IntoResponse {
+pub async fn get_all_roles(State(repo): State<Arc<impl RoleRepository>>) -> impl IntoResponse {
     match repo.get_all_roles().await {
         Ok(roles) => {
             println!("roles are successfully retrieved: {:?}", roles);

@@ -1,15 +1,21 @@
-use crate::models::{GetUserResult, User, UserData, UserId, UserName};
+use crate::models::{
+    GetUserResultDTO, RoleSlug, UpdateUserNameDTO, UserDTO, UserDataDTO, UserId, UserName,
+};
 use crate::repositories::defs::user::{
     AddRoleToUserError, DeleteUserError, GetUserError, RemoveRoleFromUserError, UpdateUserError,
     UserRepository,
 };
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde_json::json;
 use std::sync::Arc;
 
-pub async fn create_user(data: UserData, repo: Arc<impl UserRepository>) -> impl IntoResponse {
+pub async fn create_user(
+    State(repo): State<Arc<impl UserRepository>>,
+    Json(data): Json<UserDataDTO>,
+) -> impl IntoResponse {
     match repo.create_user(data).await {
         Ok(user) => {
             println!("user is successfully created: {:?}", user);
@@ -29,11 +35,11 @@ pub async fn create_user(data: UserData, repo: Arc<impl UserRepository>) -> impl
 }
 
 pub async fn update_user_name(
-    id: &UserId,
-    new_name: UserName,
-    repo: Arc<impl UserRepository>,
+    State(repo): State<Arc<impl UserRepository>>,
+    Path(id): Path<UserId>,
+    Json(data): Json<UpdateUserNameDTO>,
 ) -> impl IntoResponse {
-    match repo.update_user_name(&id, new_name).await {
+    match repo.update_user_name(&id, data).await {
         Ok(user) => {
             println!("user is successfully updated: {:?}", user);
             (StatusCode::OK, Json(user)).into_response()
@@ -60,8 +66,11 @@ pub async fn update_user_name(
     }
 }
 
-pub async fn delete_user(id: &UserId, repo: Arc<impl UserRepository>) -> impl IntoResponse {
-    match repo.delete_user(id).await {
+pub async fn delete_user(
+    State(repo): State<Arc<impl UserRepository>>,
+    Path(id): Path<UserId>,
+) -> impl IntoResponse {
+    match repo.delete_user(&id).await {
         Ok(deleted_user) => {
             println!("user is successfully deleted: {:?}", deleted_user);
             (StatusCode::OK, Json(deleted_user)).into_response()
@@ -88,8 +97,11 @@ pub async fn delete_user(id: &UserId, repo: Arc<impl UserRepository>) -> impl In
     }
 }
 
-pub async fn get_user_by_id(id: &UserId, repo: Arc<impl UserRepository>) -> impl IntoResponse {
-    match repo.get_user_by_id(id).await {
+pub async fn get_user_by_id(
+    State(repo): State<Arc<impl UserRepository>>,
+    Path(id): Path<UserId>,
+) -> impl IntoResponse {
+    match repo.get_user_by_id(&id).await {
         Ok(user) => {
             println!("user is successfully retrieved: {:?}", user);
             (StatusCode::OK, Json(user)).into_response()
@@ -116,7 +128,7 @@ pub async fn get_user_by_id(id: &UserId, repo: Arc<impl UserRepository>) -> impl
     }
 }
 
-pub async fn get_all_users(repo: Arc<impl UserRepository>) -> impl IntoResponse {
+pub async fn get_all_users(State(repo): State<Arc<impl UserRepository>>) -> impl IntoResponse {
     match repo.get_all_users().await {
         Ok(users) => {
             println!("users are successfully retrieved: {:?}", users);
@@ -142,11 +154,11 @@ pub async fn get_all_users(repo: Arc<impl UserRepository>) -> impl IntoResponse 
 }
 
 pub async fn add_role_to_user(
-    user_id: &UserId,
-    role_slug: &str,
-    repo: Arc<impl UserRepository>,
+    State(repo): State<Arc<impl UserRepository>>,
+    Path(id): Path<UserId>,
+    Path(slug): Path<RoleSlug>,
 ) -> impl IntoResponse {
-    match repo.add_role_to_user(user_id, role_slug).await {
+    match repo.add_role_to_user(&id, &slug).await {
         Ok(_) => {
             println!("role is successfully added to user");
             StatusCode::OK.into_response()
@@ -181,11 +193,11 @@ pub async fn add_role_to_user(
 }
 
 pub async fn remove_role_from_user(
-    user_id: &UserId,
-    role_slug: &str,
-    repo: Arc<impl UserRepository>,
+    State(repo): State<Arc<impl UserRepository>>,
+    Path(id): Path<UserId>,
+    Path(slug): Path<RoleSlug>,
 ) -> impl IntoResponse {
-    match repo.remove_role_from_user(user_id, role_slug).await {
+    match repo.remove_role_from_user(&id, &slug).await {
         Ok(_) => {
             println!("role is successfully removed from user");
             StatusCode::OK.into_response()

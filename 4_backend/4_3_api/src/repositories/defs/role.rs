@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use thiserror::Error;
 
-use crate::models::{Role, RoleName, RolePermissions, RoleSlug};
+use crate::models::{
+    RoleDTO, RoleName, RolePermissions, RoleSlug, UpdateRoleNameDTO, UpdateRolePermissionsDTO,
+};
 
 #[derive(Error, Debug)]
 pub enum UpdateRoleError {
@@ -35,18 +37,18 @@ pub enum GetRoleError {
 
 #[async_trait]
 pub trait RoleRepository {
-    async fn create_role(&self, data: Role) -> anyhow::Result<Role>;
+    async fn create_role(&self, data: RoleDTO) -> anyhow::Result<RoleDTO>;
     async fn update_role_name(
         &self,
         slug: &str,
-        new_name: RoleName,
-    ) -> Result<Role, UpdateRoleError>;
+        data: UpdateRoleNameDTO,
+    ) -> Result<RoleDTO, UpdateRoleError>;
     async fn update_role_permissions(
         &self,
         slug: &str,
-        new_permissions: RolePermissions,
-    ) -> Result<Role, UpdateRoleError>;
-    async fn delete_role(&self, slug: &str) -> Result<Role, DeleteRoleError>;
-    async fn get_role_by_slug(&self, slug: &str) -> Result<Role, GetRoleError>;
-    async fn get_all_roles(&self) -> anyhow::Result<Vec<Role>>;
+        data: UpdateRolePermissionsDTO,
+    ) -> Result<RoleDTO, UpdateRoleError>;
+    async fn delete_role(&self, slug: &str) -> Result<RoleDTO, DeleteRoleError>;
+    async fn get_role_by_slug(&self, slug: &str) -> Result<RoleDTO, GetRoleError>;
+    async fn get_all_roles(&self) -> anyhow::Result<Vec<RoleDTO>>;
 }
