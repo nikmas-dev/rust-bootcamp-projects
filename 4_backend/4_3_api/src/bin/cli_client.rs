@@ -310,7 +310,9 @@ async fn main() {
             RoleCommand::GetBySlug { slug } => {
                 role::get_by_slug(slug).await;
             }
-            RoleCommand::GetAll => {}
+            RoleCommand::GetAll => {
+                role::get_all().await;
+            }
         },
     }
 }
