@@ -13,6 +13,7 @@ use crate::repositories::defs::user::UserRepository;
 use crate::repositories::impls::postgres::PostgresRepositoryImpl;
 
 mod commands;
+mod constants;
 mod models;
 mod repositories;
 
