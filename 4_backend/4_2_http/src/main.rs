@@ -1,16 +1,15 @@
-use crate::commands::{role, user};
-use crate::models::{Role, RoleName, RolePermissions, RoleSlug, User, UserData, UserId, UserName};
-use crate::repositories::defs::role::RoleRepository;
-use crate::repositories::defs::user::{UpdateUserError, UserRepository};
+use std::sync::Arc;
+
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{routing, Json, Router, Server};
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::sync::Arc;
 
+use crate::commands::{role, user};
+use crate::models::{Role, RoleName, RolePermissions, RoleSlug, UserData, UserId, UserName};
+use crate::repositories::defs::role::RoleRepository;
+use crate::repositories::defs::user::UserRepository;
 use crate::repositories::impls::postgres::PostgresRepositoryImpl;
 
 mod commands;

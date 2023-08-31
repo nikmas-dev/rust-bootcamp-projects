@@ -214,6 +214,13 @@ pub async fn remove_role_from_user(
                     })),
                 )
                     .into_response(),
+                RemoveRoleFromUserError::UserShouldHaveAtLeastOneRole => (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({
+                        "message": "user should have at least one role"
+                    })),
+                )
+                    .into_response(),
             }
         }
     }

@@ -1,6 +1,8 @@
 use std::env;
 
+use crate::constants::DEFAULT_ROLE_SLUG;
 use async_trait::async_trait;
+use sqlx::error::{DatabaseError, ErrorKind};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Error, PgPool};
 
@@ -38,7 +40,7 @@ impl PostgresRepositoryImpl {
 #[async_trait]
 impl UserRepository for PostgresRepositoryImpl {
     async fn create_user(&self, data: UserData) -> anyhow::Result<User> {
-        Ok(sqlx::query_as!(
+        let user = sqlx::query_as!(
             User,
             r#"
             INSERT INTO "user"(name)
@@ -48,7 +50,11 @@ impl UserRepository for PostgresRepositoryImpl {
             data.name
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await?;
+
+        self.add_role_to_user(&user.id, DEFAULT_ROLE_SLUG).await?;
+
+        Ok(user)
     }
 
     async fn update_user_name(&self, id: &UserId, name: UserName) -> Result<User, UpdateUserError> {
@@ -136,16 +142,12 @@ impl UserRepository for PostgresRepositoryImpl {
         user_id: &UserId,
         role_slug: &str,
     ) -> Result<(), AddRoleToUserError> {
-        if let Err(err) = self.get_user_by_id(user_id).await {
-            if let GetUserError::NotFound { id } = err {
-                return Err(AddRoleToUserError::UserNotFound { id });
-            }
+        if let Err(GetUserError::NotFound { id }) = self.get_user_by_id(user_id).await {
+            return Err(AddRoleToUserError::UserNotFound { id });
         }
 
-        if let Err(err) = self.get_role_by_slug(role_slug).await {
-            if let GetRoleError::NotFound { slug } = err {
-                return Err(AddRoleToUserError::RoleNotFound { slug });
-            }
+        if let Err(GetRoleError::NotFound { slug }) = self.get_role_by_slug(role_slug).await {
+            return Err(AddRoleToUserError::RoleNotFound { slug });
         }
 
         sqlx::query!(
@@ -167,16 +169,20 @@ impl UserRepository for PostgresRepositoryImpl {
         user_id: &UserId,
         role_slug: &str,
     ) -> Result<(), RemoveRoleFromUserError> {
-        if let Err(err) = self.get_user_by_id(user_id).await {
-            if let GetUserError::NotFound { id } = err {
+        match self.get_user_by_id(user_id).await {
+            Ok(user) => {
+                if user.roles.len() == 1 {
+                    return Err(RemoveRoleFromUserError::UserShouldHaveAtLeastOneRole);
+                }
+            }
+            Err(GetUserError::NotFound { id }) => {
                 return Err(RemoveRoleFromUserError::UserNotFound { id });
             }
+            _ => (),
         }
 
-        if let Err(err) = self.get_role_by_slug(role_slug).await {
-            if let GetRoleError::NotFound { slug } = err {
-                return Err(RemoveRoleFromUserError::RoleNotFound { slug });
-            }
+        if let Err(GetRoleError::NotFound { slug }) = self.get_role_by_slug(role_slug).await {
+            return Err(RemoveRoleFromUserError::RoleNotFound { slug });
         }
 
         sqlx::query!(
@@ -275,6 +281,12 @@ impl RoleRepository for PostgresRepositoryImpl {
         .map_err(|err| match err {
             Error::RowNotFound => DeleteRoleError::NotFound {
                 slug: slug.to_owned(),
+            },
+            Error::Database(err) => match err.kind() {
+                ErrorKind::ForeignKeyViolation => DeleteRoleError::InUse {
+                    slug: slug.to_owned(),
+                },
+                _ => DeleteRoleError::Unknown(err.into()),
             },
             _ => DeleteRoleError::Unknown(err.into()),
         })

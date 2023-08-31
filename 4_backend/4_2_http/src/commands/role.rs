@@ -114,6 +114,13 @@ pub async fn delete_role(slug: &str, repo: Arc<impl RoleRepository>) -> impl Int
                     })),
                 )
                     .into_response(),
+                DeleteRoleError::InUse { slug } => (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({
+                        "message": format!("role with slug {} is in use", slug)
+                    })),
+                )
+                    .into_response(),
             }
         }
     }

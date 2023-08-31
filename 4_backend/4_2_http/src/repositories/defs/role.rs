@@ -19,6 +19,9 @@ pub enum DeleteRoleError {
 
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
+
+    #[error("role with slug {slug} is in use")]
+    InUse { slug: RoleSlug },
 }
 
 #[derive(Error, Debug)]
