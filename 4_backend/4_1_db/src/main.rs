@@ -7,6 +7,7 @@ use crate::repositories::impls::postgres::PostgresRepositoryImpl;
 mod commands;
 mod models;
 mod repositories;
+mod constants;
 
 #[derive(Parser)]
 #[command(about)]

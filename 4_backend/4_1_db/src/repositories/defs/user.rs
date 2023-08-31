@@ -50,6 +50,9 @@ pub enum RemoveRoleFromUserError {
     #[error("role with slug {slug} not found")]
     RoleNotFound { slug: RoleSlug },
 
+    #[error("user should have at least one role")]
+    UserShouldHaveAtLeastOneRole,
+
     #[error(transparent)]
     Unknown(#[from] anyhow::Error),
 }

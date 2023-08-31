@@ -15,5 +15,5 @@ CREATE TABLE IF NOT EXISTS user_role (
     role_slug VARCHAR(255),
     CONSTRAINT pk_user_role PRIMARY KEY (user_id, role_slug),
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
-    CONSTRAINT fk_role FOREIGN KEY (role_slug) REFERENCES role(slug) ON DELETE CASCADE
+    CONSTRAINT fk_role FOREIGN KEY (role_slug) REFERENCES role(slug)
 )
