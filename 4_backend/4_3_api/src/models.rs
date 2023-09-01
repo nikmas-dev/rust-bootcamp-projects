@@ -1,6 +1,6 @@
 use derive_more::{Display, From};
 use serde::{Deserialize, Serialize};
-use sqlx::{Decode, Type};
+use sqlx::{Type};
 use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, ToSchema, Debug, From, Clone, Display)]

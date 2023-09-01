@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use thiserror::Error;
 
 use crate::models::{
-    GetUserResultDTO, RoleSlug, UpdateUserNameDTO, UserDTO, UserDataDTO, UserId, UserName,
+    GetUserResultDTO, RoleSlug, UpdateUserNameDTO, UserDTO, UserDataDTO, UserId,
 };
 
 #[derive(Error, Debug)]

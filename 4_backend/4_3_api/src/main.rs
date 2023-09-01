@@ -2,11 +2,9 @@ use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::response::IntoResponse;
 use axum::routing::{delete, post, put};
 use axum::{Router, Server};
-use clap::{Parser, Subcommand};
-use serde::{Deserialize, Serialize};
+
 use tracing_subscriber::EnvFilter;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -16,9 +14,8 @@ use crate::models::{
     GetUserResultDTO, RoleDTO, RoleName, RolePermissions, RoleSlug, UpdateRoleNameDTO,
     UpdateRolePermissionsDTO, UpdateUserNameDTO, UserDTO, UserDataDTO, UserId, UserName,
 };
-use crate::repositories::defs::role::RoleRepository;
-use crate::repositories::defs::user::UserRepository;
-use crate::repositories::impls::postgres::{CombinedRepository, PostgresRepositoryImpl};
+
+use crate::repositories::impls::postgres::PostgresRepositoryImpl;
 
 mod commands;
 mod constants;

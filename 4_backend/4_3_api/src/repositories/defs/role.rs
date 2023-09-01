@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use derive_more::From;
+
 use thiserror::Error;
 
 use crate::models::{
-    RoleDTO, RoleName, RolePermissions, RoleSlug, UpdateRoleNameDTO, UpdateRolePermissionsDTO,
+    RoleDTO, RoleSlug, UpdateRoleNameDTO, UpdateRolePermissionsDTO,
 };
 
 #[derive(Error, Debug)]
