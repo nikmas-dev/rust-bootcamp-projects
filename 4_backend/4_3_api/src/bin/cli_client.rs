@@ -1,7 +1,11 @@
 use clap::{Parser, Subcommand};
+use reqwest::Response;
 use serde::Serialize;
+use serde_json::Value;
+use tracing_subscriber::EnvFilter;
 
 const SERVER_URL: &str = "http://localhost:3008";
+const DEFAULT_LOG_LEVEL: &str = "info";
 
 type UserName = String;
 type UserId = i64;
@@ -90,9 +94,15 @@ enum RoleCommand {
     GetAll,
 }
 
+async fn get_pretty_json_response(response: Response) -> String {
+    serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
+}
+
 mod user {
+    use crate::get_pretty_json_response;
     use reqwest::Client;
     use serde_json::{json, Value};
+    use tracing::info;
 
     use crate::{RoleSlug, UserId, UserName, SERVER_URL};
 
@@ -107,11 +117,9 @@ mod user {
             .await
             .unwrap();
 
-        println!("{:?}", response);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
-        );
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn update_name(user_id: UserId, new_name: UserName) {
@@ -125,73 +133,62 @@ mod user {
             .await
             .unwrap();
 
-        println!("{:?}", response);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
-        );
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn delete(user_id: UserId) {
         let request_url = format!("{}/api/users/{}", SERVER_URL, user_id);
         let response = Client::new().delete(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
-        );
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn get_by_id(user_id: UserId) {
         let request_url = format!("{}/api/users/{}", SERVER_URL, user_id);
         let response = Client::new().get(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
-        );
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn get_all() {
         let request_url = format!("{}/api/users", SERVER_URL);
         let response = Client::new().get(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
-        );
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn add_role_to_user(user_id: UserId, role_slug: RoleSlug) {
         let request_url = format!("{}/api/users/{}/roles/{}", SERVER_URL, user_id, role_slug);
         let response = Client::new().post(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
-        );
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn remove_role_from_user(user_id: UserId, role_slug: RoleSlug) {
         let request_url = format!("{}/api/users/{}/roles/{}", SERVER_URL, user_id, role_slug);
         let response = Client::new().delete(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&response.json::<Value>().await.unwrap()).unwrap()
-        );
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 }
 
 mod role {
-    use crate::{RoleName, RolePermissions, RoleSlug, SERVER_URL};
+    use crate::{get_pretty_json_response, RoleName, RolePermissions, RoleSlug, SERVER_URL};
     use reqwest::Client;
-    use serde_json::json;
+    use serde_json::{json, Value};
+    use tracing::info;
 
     pub async fn create(slug: RoleSlug, name: RoleName, permissions: RoleSlug) {
         let request_url = format!("{}/api/roles", SERVER_URL);
@@ -206,7 +203,9 @@ mod role {
             .await
             .unwrap();
 
-        println!("{:?}", response);
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn update_name(slug: RoleSlug, new_name: RoleName) {
@@ -220,7 +219,9 @@ mod role {
             .await
             .unwrap();
 
-        println!("{:?}", response);
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn update_permissions(slug: RoleSlug, new_permissions: RolePermissions) {
@@ -234,33 +235,47 @@ mod role {
             .await
             .unwrap();
 
-        println!("{:?}", response);
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn delete(slug: RoleSlug) {
         let request_url = format!("{}/api/roles/{}", SERVER_URL, slug);
         let response = Client::new().delete(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn get_by_slug(slug: RoleSlug) {
         let request_url = format!("{}/api/roles/{}", SERVER_URL, slug);
         let response = Client::new().get(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 
     pub async fn get_all() {
         let request_url = format!("{}/api/roles", SERVER_URL);
         let response = Client::new().get(&request_url).send().await.unwrap();
 
-        println!("{:?}", response);
+        info!("{:?}", response);
+
+        info!("{}", get_pretty_json_response(response).await);
     }
 }
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL)),
+        )
+        .init();
+
     let cli = Cli::parse();
 
     match cli.command {
