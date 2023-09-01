@@ -9,4 +9,5 @@ members = [
     "3_ecosystem/3_2_macro/btreee_function_macro",
     "4_backend",
     "4_backend/4_*",
+    "4_backend/4_2_http/api"
 ]
