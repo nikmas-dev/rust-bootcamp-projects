@@ -2885,6 +2885,15 @@ version = "0.1.0"
 [[package]]
 name = "step_4_1"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "clap",
+ "dotenv",
+ "sqlx",
+ "thiserror",
+ "tokio",
+]
 
 [[package]]
 name = "step_4_2"
