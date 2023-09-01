@@ -1,9 +1,11 @@
+use std::env;
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::{routing, Json, Router, Server};
-use clap::{Parser};
+use clap::Parser;
 
 use tracing_subscriber::EnvFilter;
 
@@ -23,6 +25,7 @@ mod models;
 mod repositories;
 
 const DEFAULT_LOG_LEVEL: &str = "info";
+const PORT_ENV: &str = "PORT";
 
 #[tokio::main]
 async fn main() {
@@ -40,10 +43,13 @@ async fn main() {
         .route("/execute-command", routing::post(execute_command))
         .with_state(repo);
 
-    Server::bind(&"0.0.0.0:3008".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    Server::bind(&SocketAddr::from((
+        [0, 0, 0, 0],
+        env::var(PORT_ENV).unwrap().parse().unwrap(),
+    )))
+    .serve(app.into_make_service())
+    .await
+    .unwrap();
 }
 
 async fn execute_command<R>(
