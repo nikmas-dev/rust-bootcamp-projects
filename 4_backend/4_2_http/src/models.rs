@@ -1,35 +1,58 @@
-use serde::Serialize;
+use derive_more::{Display, From};
+use serde::{Deserialize, Serialize};
+use sqlx::Type;
 
-pub type RoleSlug = String;
-pub type RoleName = String;
-pub type RolePermissions = String;
+#[derive(Serialize, Deserialize, Debug, From, Clone, Display)]
+pub struct RoleSlug(pub String);
 
-#[derive(Serialize, Debug)]
-pub struct Role {
+#[derive(Serialize, Deserialize, Debug, From, Clone, Type, Display)]
+pub struct RoleName(pub String);
+
+#[derive(Serialize, Deserialize, Debug, From, Clone, Display)]
+pub struct RolePermissions(pub String);
+
+#[derive(Serialize, Deserialize, Debug, From)]
+pub struct RoleDTO {
     pub slug: RoleSlug,
     pub name: RoleName,
     pub permissions: RolePermissions,
 }
 
-pub type UserId = i64;
-pub type UserName = String;
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateRoleNameDTO {
+    pub new_name: RoleName,
+}
 
-#[derive(Serialize, Debug)]
-pub struct User {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateRolePermissionsDTO {
+    pub new_permissions: RolePermissions,
+}
+
+#[derive(Serialize, Deserialize, Debug, From, Clone, Copy, Display)]
+pub struct UserId(pub i64);
+
+#[derive(Serialize, Deserialize, Debug, From, Clone, Display)]
+pub struct UserName(pub String);
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserDTO {
     pub id: UserId,
     pub name: UserName,
 }
 
-#[derive(Debug)]
-pub struct UserData {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserDataDTO {
     pub name: UserName,
 }
 
-pub type AllUserRoles = Vec<RoleName>;
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateUserNameDTO {
+    pub new_name: UserName,
+}
 
-#[derive(Serialize, Debug)]
-pub struct GetUserResult {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetUserResultDTO {
     pub id: UserId,
     pub name: UserName,
-    pub roles: AllUserRoles,
+    pub roles: Vec<RoleName>,
 }

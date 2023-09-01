@@ -1,23 +1,27 @@
 use std::env;
 
-use crate::constants::DEFAULT_ROLE_SLUG;
 use async_trait::async_trait;
 use sqlx::error::{DatabaseError, ErrorKind};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Error, PgPool};
 
+use crate::constants::DEFAULT_ROLE_SLUG;
 use crate::models::{
-    AllUserRoles, GetUserResult, Role, RoleName, RolePermissions, User, UserData, UserId, UserName,
+    GetUserResultDTO, RoleDTO, RoleName, RoleSlug, UpdateRoleNameDTO, UpdateRolePermissionsDTO,
+    UpdateUserNameDTO, UserDTO, UserDataDTO, UserId,
 };
 use crate::repositories::defs::role::{
-    DeleteRoleError, GetRoleError, RoleRepository, UpdateRoleError,
+    CreateRoleError, DeleteRoleError, GetAllRolesError, GetRoleError, RoleRepository,
+    UpdateRoleError,
 };
 use crate::repositories::defs::user::{
-    AddRoleToUserError, DeleteUserError, GetUserError, RemoveRoleFromUserError, UpdateUserError,
-    UserRepository,
+    AddRoleToUserError, CreateUserError, DeleteRoleFromUserError, DeleteUserError,
+    GetAllUsersError, GetUserError, UpdateUserError, UserRepository,
 };
 
-const MAX_POOL_SIZE: u32 = 20;
+pub trait CombinedRepository: UserRepository + RoleRepository {}
+
+pub const MAX_POOL_SIZE: u32 = 20;
 const DATABASE_URL_ENV: &str = "DATABASE_URL";
 
 pub struct PostgresRepositoryImpl {
@@ -37,37 +41,57 @@ impl PostgresRepositoryImpl {
     }
 }
 
+impl CombinedRepository for PostgresRepositoryImpl {}
+
 #[async_trait]
 impl UserRepository for PostgresRepositoryImpl {
-    async fn create_user(&self, data: UserData) -> anyhow::Result<User> {
+    async fn create_user(&self, data: UserDataDTO) -> Result<UserDTO, CreateUserError> {
+        let transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|err| CreateUserError::Unknown(err.into()))?;
+
         let user = sqlx::query_as!(
-            User,
+            UserDTO,
             r#"
             INSERT INTO "user"(name)
             VALUES ($1)
             RETURNING id, name
             "#,
-            data.name
+            data.name.0
         )
         .fetch_one(&self.pool)
-        .await?;
+        .await
+        .map_err(|err| CreateUserError::Unknown(err.into()))?;
 
-        self.add_role_to_user(&user.id, DEFAULT_ROLE_SLUG).await?;
+        self.add_role_to_user(&user.id, &DEFAULT_ROLE_SLUG.to_owned().into())
+            .await
+            .map_err(|err| CreateUserError::Unknown(err.into()))?;
+
+        transaction
+            .commit()
+            .await
+            .map_err(|err| CreateUserError::Unknown(err.into()))?;
 
         Ok(user)
     }
 
-    async fn update_user_name(&self, id: &UserId, name: UserName) -> Result<User, UpdateUserError> {
+    async fn update_user_name(
+        &self,
+        id: &UserId,
+        UpdateUserNameDTO { new_name }: UpdateUserNameDTO,
+    ) -> Result<UserDTO, UpdateUserError> {
         sqlx::query_as!(
-            User,
+            UserDTO,
             r#"
             UPDATE "user"
             SET name = $1
             WHERE id = $2
             RETURNING id, name
             "#,
-            name,
-            id
+            new_name.0,
+            id.0
         )
         .fetch_one(&self.pool)
         .await
@@ -77,15 +101,15 @@ impl UserRepository for PostgresRepositoryImpl {
         })
     }
 
-    async fn delete_user(&self, id: &UserId) -> Result<User, DeleteUserError> {
+    async fn delete_user(&self, id: &UserId) -> Result<UserDTO, DeleteUserError> {
         sqlx::query_as!(
-            User,
+            UserDTO,
             r#"
             DELETE FROM "user"
             WHERE id = $1
             RETURNING id, name
             "#,
-            id
+            id.0
         )
         .fetch_one(&self.pool)
         .await
@@ -95,21 +119,21 @@ impl UserRepository for PostgresRepositoryImpl {
         })
     }
 
-    async fn get_user_by_id(&self, id: &UserId) -> Result<GetUserResult, GetUserError> {
+    async fn get_user_by_id(&self, id: &UserId) -> Result<GetUserResultDTO, GetUserError> {
         sqlx::query_as!(
-            GetUserResult,
+            GetUserResultDTO,
             r#"
             SELECT
                 "user".id AS id,
                 "user".name AS name,
-                COALESCE(NULLIF(ARRAY_AGG(role.name), '{NULL}'), '{}') AS "roles!: AllUserRoles"
+                COALESCE(NULLIF(ARRAY_AGG(role.name), '{NULL}'), '{}') AS "roles!: Vec<RoleName>"
             FROM "user"
                  LEFT JOIN user_role ON "user".id = user_role.user_id
                  LEFT JOIN role ON user_role.role_slug = role.slug
             WHERE "user".id = $1
             GROUP BY "user".id, "user".name
             "#,
-            id
+            id.0
         )
         .fetch_one(&self.pool)
         .await
@@ -119,14 +143,14 @@ impl UserRepository for PostgresRepositoryImpl {
         })
     }
 
-    async fn get_all_users(&self) -> anyhow::Result<Vec<GetUserResult>> {
-        Ok(sqlx::query_as!(
-            GetUserResult,
+    async fn get_all_users(&self) -> Result<Vec<GetUserResultDTO>, GetAllUsersError> {
+        sqlx::query_as!(
+            GetUserResultDTO,
             r#"
             SELECT
                 "user".id AS id,
                 "user".name AS name,
-                COALESCE(NULLIF(ARRAY_AGG(role.name), '{NULL}'), '{}') AS "roles!: AllUserRoles"
+                COALESCE(NULLIF(ARRAY_AGG(role.name), '{NULL}'), '{}') AS "roles!: Vec<RoleName>"
             FROM "user"
                  LEFT JOIN user_role ON "user".id = user_role.user_id
                  LEFT JOIN role ON user_role.role_slug = role.slug
@@ -134,13 +158,14 @@ impl UserRepository for PostgresRepositoryImpl {
             "#,
         )
         .fetch_all(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| GetAllUsersError::Unknown(err.into()))
     }
 
     async fn add_role_to_user(
         &self,
         user_id: &UserId,
-        role_slug: &str,
+        role_slug: &RoleSlug,
     ) -> Result<(), AddRoleToUserError> {
         if let Err(GetUserError::NotFound { id }) = self.get_user_by_id(user_id).await {
             return Err(AddRoleToUserError::UserNotFound { id });
@@ -155,8 +180,8 @@ impl UserRepository for PostgresRepositoryImpl {
             INSERT INTO user_role(user_id, role_slug)
             VALUES ($1, $2)
             "#,
-            user_id,
-            role_slug
+            user_id.0,
+            role_slug.0
         )
         .execute(&self.pool)
         .await
@@ -167,22 +192,22 @@ impl UserRepository for PostgresRepositoryImpl {
     async fn remove_role_from_user(
         &self,
         user_id: &UserId,
-        role_slug: &str,
-    ) -> Result<(), RemoveRoleFromUserError> {
+        role_slug: &RoleSlug,
+    ) -> Result<(), DeleteRoleFromUserError> {
         match self.get_user_by_id(user_id).await {
             Ok(user) => {
                 if user.roles.len() == 1 {
-                    return Err(RemoveRoleFromUserError::UserShouldHaveAtLeastOneRole);
+                    return Err(DeleteRoleFromUserError::UserShouldHaveAtLeastOneRole);
                 }
             }
             Err(GetUserError::NotFound { id }) => {
-                return Err(RemoveRoleFromUserError::UserNotFound { id });
+                return Err(DeleteRoleFromUserError::UserNotFound { id });
             }
             _ => (),
         }
 
         if let Err(GetRoleError::NotFound { slug }) = self.get_role_by_slug(role_slug).await {
-            return Err(RemoveRoleFromUserError::RoleNotFound { slug });
+            return Err(DeleteRoleFromUserError::RoleNotFound { slug });
         }
 
         sqlx::query!(
@@ -190,45 +215,50 @@ impl UserRepository for PostgresRepositoryImpl {
             DELETE FROM user_role
             WHERE user_id = $1 AND role_slug = $2
             "#,
-            user_id,
-            role_slug
+            user_id.0,
+            role_slug.0
         )
         .execute(&self.pool)
         .await
         .map(|_| ())
-        .map_err(|err| RemoveRoleFromUserError::Unknown(err.into()))
+        .map_err(|err| DeleteRoleFromUserError::Unknown(err.into()))
     }
 }
 
 #[async_trait]
 impl RoleRepository for PostgresRepositoryImpl {
-    async fn create_role(&self, data: Role) -> anyhow::Result<Role> {
-        Ok(sqlx::query_as!(
-            Role,
+    async fn create_role(&self, data: RoleDTO) -> Result<RoleDTO, CreateRoleError> {
+        sqlx::query_as!(
+            RoleDTO,
             r#"
             INSERT INTO role(slug, name, permissions)
             VALUES ($1, $2, $3)
             RETURNING slug, name, permissions
             "#,
-            data.slug,
-            data.name,
-            data.permissions
+            data.slug.0,
+            data.name.0,
+            data.permissions.0
         )
         .fetch_one(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| CreateRoleError::Unknown(err.into()))
     }
 
-    async fn update_role_name(&self, slug: &str, name: RoleName) -> Result<Role, UpdateRoleError> {
+    async fn update_role_name(
+        &self,
+        slug: &RoleSlug,
+        UpdateRoleNameDTO { new_name }: UpdateRoleNameDTO,
+    ) -> Result<RoleDTO, UpdateRoleError> {
         sqlx::query_as!(
-            Role,
+            RoleDTO,
             r#"
             UPDATE role
             SET name = $1
             WHERE slug = $2
             RETURNING slug, name, permissions
             "#,
-            name,
-            slug
+            new_name.0,
+            slug.0
         )
         .fetch_one(&self.pool)
         .await
@@ -242,19 +272,19 @@ impl RoleRepository for PostgresRepositoryImpl {
 
     async fn update_role_permissions(
         &self,
-        slug: &str,
-        permissions: RolePermissions,
-    ) -> Result<Role, UpdateRoleError> {
+        slug: &RoleSlug,
+        UpdateRolePermissionsDTO { new_permissions }: UpdateRolePermissionsDTO,
+    ) -> Result<RoleDTO, UpdateRoleError> {
         sqlx::query_as!(
-            Role,
+            RoleDTO,
             r#"
             UPDATE role
             SET permissions = $1
             WHERE slug = $2
             RETURNING slug, name, permissions
             "#,
-            permissions,
-            slug
+            new_permissions.0,
+            slug.0
         )
         .fetch_one(&self.pool)
         .await
@@ -266,15 +296,15 @@ impl RoleRepository for PostgresRepositoryImpl {
         })
     }
 
-    async fn delete_role(&self, slug: &str) -> Result<Role, DeleteRoleError> {
+    async fn delete_role(&self, slug: &RoleSlug) -> Result<RoleDTO, DeleteRoleError> {
         sqlx::query_as!(
-            Role,
+            RoleDTO,
             r#"
             DELETE FROM role
             WHERE slug = $1
             RETURNING slug, name, permissions
             "#,
-            slug
+            slug.0
         )
         .fetch_one(&self.pool)
         .await
@@ -292,15 +322,15 @@ impl RoleRepository for PostgresRepositoryImpl {
         })
     }
 
-    async fn get_role_by_slug(&self, slug: &str) -> Result<Role, GetRoleError> {
+    async fn get_role_by_slug(&self, slug: &RoleSlug) -> Result<RoleDTO, GetRoleError> {
         sqlx::query_as!(
-            Role,
+            RoleDTO,
             r#"
             SELECT slug, name, permissions
             FROM role
             WHERE slug = $1
             "#,
-            slug
+            slug.0
         )
         .fetch_one(&self.pool)
         .await
@@ -312,15 +342,16 @@ impl RoleRepository for PostgresRepositoryImpl {
         })
     }
 
-    async fn get_all_roles(&self) -> anyhow::Result<Vec<Role>> {
-        Ok(sqlx::query_as!(
-            Role,
+    async fn get_all_roles(&self) -> Result<Vec<RoleDTO>, GetAllRolesError> {
+        sqlx::query_as!(
+            RoleDTO,
             r#"
             SELECT slug, name, permissions
             FROM role
             "#,
         )
         .fetch_all(&self.pool)
-        .await?)
+        .await
+        .map_err(|err| GetAllRolesError::Unknown(err.into()))
     }
 }
