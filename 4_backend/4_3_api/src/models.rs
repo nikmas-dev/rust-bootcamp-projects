@@ -1,31 +1,41 @@
+use derive_more::{Display, From};
 use serde::{Deserialize, Serialize};
+use sqlx::{Decode, Type};
 use utoipa::ToSchema;
 
-pub type RoleSlug = String;
-pub type RoleName = String;
-pub type RolePermissions = String;
+#[derive(Serialize, Deserialize, ToSchema, Debug, From, Clone, Display)]
+pub struct RoleSlug(pub String);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug, From, Clone, Type, Display)]
+pub struct RoleName(pub String);
+
+#[derive(Serialize, Deserialize, ToSchema, Debug, From, Clone, Display)]
+pub struct RolePermissions(pub String);
+
+#[derive(Serialize, Deserialize, ToSchema, Debug, From)]
 pub struct RoleDTO {
     pub slug: RoleSlug,
     pub name: RoleName,
     pub permissions: RolePermissions,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct UpdateRoleNameDTO {
     pub new_name: RoleName,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct UpdateRolePermissionsDTO {
     pub new_permissions: RolePermissions,
 }
 
-pub type UserId = i64;
-pub type UserName = String;
+#[derive(Serialize, Deserialize, ToSchema, Debug, From, Clone, Copy, Display)]
+pub struct UserId(pub i64);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug, From, Clone, Display)]
+pub struct UserName(pub String);
+
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct UserDTO {
     pub id: UserId,
     pub name: UserName,
@@ -36,16 +46,14 @@ pub struct UserDataDTO {
     pub name: UserName,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct UpdateUserNameDTO {
     pub new_name: UserName,
 }
-
-pub type AllUserRoles = Vec<RoleName>;
 
 #[derive(Serialize, Deserialize, ToSchema, Debug)]
 pub struct GetUserResultDTO {
     pub id: UserId,
     pub name: UserName,
-    pub roles: AllUserRoles,
+    pub roles: Vec<RoleName>,
 }

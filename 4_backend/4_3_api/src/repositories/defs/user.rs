@@ -6,6 +6,12 @@ use crate::models::{
 };
 
 #[derive(Error, Debug)]
+pub enum CreateUserError {
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+#[derive(Error, Debug)]
 pub enum UpdateUserError {
     #[error("user with id {id} not found")]
     NotFound { id: UserId },
@@ -33,6 +39,12 @@ pub enum GetUserError {
 }
 
 #[derive(Error, Debug)]
+pub enum GetAllUsersError {
+    #[error(transparent)]
+    Unknown(#[from] anyhow::Error),
+}
+
+#[derive(Error, Debug)]
 pub enum AddRoleToUserError {
     #[error("user with id {id} not found")]
     UserNotFound { id: UserId },
@@ -45,7 +57,7 @@ pub enum AddRoleToUserError {
 }
 
 #[derive(Error, Debug)]
-pub enum RemoveRoleFromUserError {
+pub enum DeleteRoleFromUserError {
     #[error("user with id {id} not found")]
     UserNotFound { id: UserId },
 
@@ -60,8 +72,8 @@ pub enum RemoveRoleFromUserError {
 }
 
 #[async_trait]
-pub trait UserRepository {
-    async fn create_user(&self, data: UserDataDTO) -> anyhow::Result<UserDTO>;
+pub trait UserRepository: Send + Sync + Sized {
+    async fn create_user(&self, data: UserDataDTO) -> Result<UserDTO, CreateUserError>;
     async fn update_user_name(
         &self,
         id: &UserId,
@@ -70,16 +82,16 @@ pub trait UserRepository {
     async fn delete_user(&self, id: &UserId) -> Result<UserDTO, DeleteUserError>;
 
     async fn get_user_by_id(&self, id: &UserId) -> Result<GetUserResultDTO, GetUserError>;
-    async fn get_all_users(&self) -> anyhow::Result<Vec<GetUserResultDTO>>;
+    async fn get_all_users(&self) -> Result<Vec<GetUserResultDTO>, GetAllUsersError>;
 
     async fn add_role_to_user(
         &self,
         user_id: &UserId,
-        role_slug: &str,
+        role_slug: &RoleSlug,
     ) -> Result<(), AddRoleToUserError>;
     async fn remove_role_from_user(
         &self,
         user_id: &UserId,
-        role_slug: &str,
-    ) -> Result<(), RemoveRoleFromUserError>;
+        role_slug: &RoleSlug,
+    ) -> Result<(), DeleteRoleFromUserError>;
 }

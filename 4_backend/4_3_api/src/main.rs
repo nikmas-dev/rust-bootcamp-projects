@@ -1,3 +1,5 @@
+use std::env;
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::response::IntoResponse;
@@ -5,46 +7,69 @@ use axum::routing::{delete, post, put};
 use axum::{Router, Server};
 use clap::{Parser, Subcommand};
 use serde::{Deserialize, Serialize};
+use tracing_subscriber::EnvFilter;
 use utoipa::OpenApi;
-use utoipa_rapidoc::RapiDoc;
-use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::commands::{role, user};
-use crate::models::{GetUserResultDTO, UserDataDTO};
+use crate::models::{
+    GetUserResultDTO, RoleDTO, RoleName, RolePermissions, RoleSlug, UpdateRoleNameDTO,
+    UpdateRolePermissionsDTO, UpdateUserNameDTO, UserDTO, UserDataDTO, UserId, UserName,
+};
 use crate::repositories::defs::role::RoleRepository;
 use crate::repositories::defs::user::UserRepository;
-use crate::repositories::impls::postgres::PostgresRepositoryImpl;
+use crate::repositories::impls::postgres::{CombinedRepository, PostgresRepositoryImpl};
 
 mod commands;
 mod constants;
 mod models;
 mod repositories;
 
+const PORT_ENV: &str = "PORT";
+const DEFAULT_LOG_LEVEL: &str = "info";
+
 #[derive(OpenApi)]
 #[openapi(
     paths(
         user::create_user,
         user::get_all_users,
-        user::update_user_name,
-        user::delete_user,
         user::get_user_by_id,
+        user::update_user_name,
         user::add_role_to_user,
         user::remove_role_from_user,
         role::create_role,
         role::get_all_roles,
+        role::get_role_by_slug,
         role::update_role_name,
         role::update_role_permissions,
-        role::delete_role,
-        role::get_role_by_slug
+        role::delete_role
     ),
-    components(schemas(GetUserResultDTO, UserDataDTO))
+    components(schemas(
+        UpdateRoleNameDTO,
+        UpdateRolePermissionsDTO,
+        UserId,
+        GetUserResultDTO,
+        UserDataDTO,
+        UpdateUserNameDTO,
+        UserDTO,
+        UserName,
+        RoleSlug,
+        RoleName,
+        RolePermissions,
+        RoleDTO
+    ))
 )]
 struct ApiDoc;
 
 #[tokio::main]
 async fn main() {
     dotenv::from_path("4_backend/4_3_api/.env").unwrap();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL)),
+        )
+        .init();
 
     let repo = Arc::new(PostgresRepositoryImpl::new().await.unwrap());
 
@@ -68,14 +93,15 @@ async fn main() {
 
     let app = Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        // .merge(Redoc::with_url("/redoc", ApiDoc::openapi()))
-        // .merge(RapiDoc::new("/api-docs/openapi.json").path("/rapidoc"))
         .nest("/api/users", user_routes)
         .nest("/api/roles", role_routes)
         .with_state(repo);
 
-    Server::bind(&"0.0.0.0:3008".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    Server::bind(&SocketAddr::from((
+        [0, 0, 0, 0],
+        env::var(PORT_ENV).unwrap().parse().unwrap(),
+    )))
+    .serve(app.into_make_service())
+    .await
+    .unwrap();
 }
