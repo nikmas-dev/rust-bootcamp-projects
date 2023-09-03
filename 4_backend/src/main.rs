@@ -8,7 +8,7 @@ use crate::graphql::schema;
 use crate::graphql::schema::AppSchema;
 use crate::repositories::defs::user::UserRepository;
 use crate::repositories::impls::postgres::PostgresRepositoryImpl;
-use crate::utils::auth::OptionalClaims;
+use crate::utils::auth::Claims;
 use async_graphql::http;
 use async_graphql::http::GraphQLPlaygroundConfig;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
@@ -32,7 +32,7 @@ async fn graphql_playground() -> impl IntoResponse {
 
 async fn graphql_handler<R: UserRepository>(
     State(repo): State<Arc<R>>,
-    claims: OptionalClaims,
+    claims: Option<Claims>,
     schema: Extension<AppSchema<R>>,
     req: GraphQLRequest,
 ) -> GraphQLResponse {

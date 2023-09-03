@@ -16,9 +16,8 @@ use thiserror::Error;
 use tracing::info;
 
 pub fn authorize_graphql<'a>(ctx: &Context<'a>) -> Result<&'a Claims, AuthError> {
-    ctx.data::<OptionalClaims>()
+    ctx.data::<Option<Claims>>()
         .unwrap()
-        .0
         .as_ref()
         .ok_or(AuthError::Unauthorized)
 }
@@ -35,8 +34,6 @@ pub struct Claims {
     pub user_id: UserId,
     pub exp: Timestamp,
 }
-
-pub struct OptionalClaims(pub Option<Claims>);
 
 pub struct Keys {
     pub encoding: EncodingKey,
@@ -75,26 +72,22 @@ impl IntoResponse for AuthError {
 }
 
 #[async_trait]
-impl<S> FromRequestParts<S> for OptionalClaims
+impl<S> FromRequestParts<S> for Claims
 where
     S: Send + Sync,
 {
     type Rejection = AuthError;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
-        if let Ok(TypedHeader(Authorization(bearer))) =
-            parts.extract::<TypedHeader<Authorization<Bearer>>>().await
-        {
-            match decode::<Claims>(bearer.token(), &KEYS.decoding, &Validation::default()) {
-                Ok(token_data) => {
-                    return Ok(OptionalClaims(Some(token_data.claims)));
-                }
-                Err(err) => {
-                    info!("invalid token: {:?}", err);
-                }
-            }
-        }
+        // Extract the token from the authorization header
+        let TypedHeader(Authorization(bearer)) = parts
+            .extract::<TypedHeader<Authorization<Bearer>>>()
+            .await
+            .map_err(|_| AuthError::Unauthorized)?;
+        // Decode the user data
+        let token_data = decode::<Claims>(bearer.token(), &KEYS.decoding, &Validation::default())
+            .map_err(|_| AuthError::Unauthorized)?;
 
-        Ok(OptionalClaims(None))
+        Ok(token_data.claims)
     }
 }
