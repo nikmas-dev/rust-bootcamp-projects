@@ -1,7 +1,7 @@
 use crate::models::UserId;
 use async_graphql::Context;
 use async_trait::async_trait;
-use axum::extract::rejection::TypedHeaderRejection;
+
 use axum::extract::FromRequestParts;
 use axum::headers::authorization::Bearer;
 use axum::headers::Authorization;

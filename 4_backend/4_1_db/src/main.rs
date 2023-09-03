@@ -5,9 +5,9 @@ use crate::models::{Role, RoleName, RolePermissions, RoleSlug, UserData, UserId,
 use crate::repositories::impls::postgres::PostgresRepositoryImpl;
 
 mod commands;
+mod constants;
 mod models;
 mod repositories;
-mod constants;
 
 #[derive(Parser)]
 #[command(about)]

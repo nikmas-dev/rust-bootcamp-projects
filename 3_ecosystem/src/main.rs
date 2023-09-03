@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::io::{BufWriter, Cursor};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -8,7 +8,7 @@ use std::{fs, io};
 use anyhow::{bail, Context, Result};
 use clap::Parser;
 use config::builder::BuilderState;
-use config::{Config, ConfigBuilder, ConfigError, FileFormat, Map, Source, Value};
+use config::{Config, ConfigBuilder, FileFormat, Source};
 use futures::future;
 use image::codecs::jpeg::JpegEncoder;
 use image::{io::Reader as ImageReader, DynamicImage, ImageFormat};

@@ -11,7 +11,7 @@ use crate::graphql::models::{
     AddFriendInput, AddFriendToUserResponse, LoginResponse, LoginUserInput, RegisterUserInput,
     RemoveFriendFromUserResponse, RemoveFriendInput, User,
 };
-use crate::models::{AuthToken, CreateUserDTO};
+use crate::models::CreateUserDTO;
 use crate::repositories::defs::user::{
     AddFriendToUserError, CreateUserError, GetUserByNameError, RemoveFriendFromUserError,
     UserRepository,
