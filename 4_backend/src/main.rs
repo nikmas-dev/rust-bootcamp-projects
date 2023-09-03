@@ -18,6 +18,9 @@ use axum::routing::{get, post};
 use axum::{Extension, Router, Server, ServiceExt};
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tracing_subscriber::EnvFilter;
+
+const DEFAULT_LOG_LEVEL: &str = "info";
 
 async fn graphql_playground() -> impl IntoResponse {
     Html(http::playground_source(GraphQLPlaygroundConfig::new(
@@ -40,6 +43,13 @@ async fn graphql_handler<R: UserRepository>(
 #[tokio::main]
 async fn main() {
     dotenv::from_path("4_backend/.env").unwrap();
+
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(DEFAULT_LOG_LEVEL)),
+        )
+        .init();
+
     let graphql_schema = schema::build_schema::<PostgresRepositoryImpl>();
 
     let repo = Arc::new(PostgresRepositoryImpl::new().await.unwrap());

@@ -13,6 +13,7 @@ use jsonwebtoken::{decode, DecodingKey, EncodingKey, Validation};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::info;
 
 pub fn authorize_graphql<'a>(ctx: &Context<'a>) -> Result<&'a Claims, AuthError> {
     ctx.data::<OptionalClaims>()
@@ -84,13 +85,12 @@ where
         if let Ok(TypedHeader(Authorization(bearer))) =
             parts.extract::<TypedHeader<Authorization<Bearer>>>().await
         {
-            println!("{:?}", bearer.token());
             match decode::<Claims>(bearer.token(), &KEYS.decoding, &Validation::default()) {
                 Ok(token_data) => {
                     return Ok(OptionalClaims(Some(token_data.claims)));
                 }
                 Err(err) => {
-                    println!("{:?}", err);
+                    info!("invalid token: {:?}", err);
                 }
             }
         }
