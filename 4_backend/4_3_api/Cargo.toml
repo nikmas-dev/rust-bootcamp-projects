@@ -3,3 +3,21 @@ name = "step_4_3"
 version = "0.1.0"
 edition = "2021"
 publish = false
+
+[dependencies]
+async-trait = "0.1.73"
+sqlx = { version = "0.7.1", features = ["runtime-tokio-native-tls", "postgres", "macros"] }
+tokio = { version = "1.32.0", features = ["full"] }
+dotenv = "0.15.0"
+anyhow = "1.0.75"
+clap = { version = "4.4.0", features = ["derive"] }
+axum = { version = "0.6.20", features = ["macros"] }
+serde = { version = "1.0.186", features = ["derive"] }
+serde_json = "1.0.105"
+thiserror = "1.0.47"
+reqwest = { version = "0.11.20", features = ["json"] }
+utoipa = { version = "3.5.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "3.1.5", features = ["axum"] }
+derive_more = { version = "1.0.0-beta.3", features = ["from", "display"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
