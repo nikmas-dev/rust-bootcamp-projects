@@ -1,0 +1,1 @@
+pub const JWT_EXPIRATION_HOURS: u64 = 1;
