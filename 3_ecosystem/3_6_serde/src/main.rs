@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn test_request_deserialization() {
-        let path = Path::new(REQUEST_FILE_PATH);
+        let _path = Path::new(REQUEST_FILE_PATH);
 
         let content = r#"{
               "type": "success",
