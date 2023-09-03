@@ -16,11 +16,13 @@ use axum::extract::State;
 use axum::response::{Html, IntoResponse};
 use axum::routing::{get, post};
 use axum::{Extension, Router, Server, ServiceExt};
+use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 
 const DEFAULT_LOG_LEVEL: &str = "info";
+const PORT_ENV: &str = "PORT";
 
 async fn graphql_playground() -> impl IntoResponse {
     Html(http::playground_source(GraphQLPlaygroundConfig::new(
@@ -60,8 +62,11 @@ async fn main() {
         .with_state(repo)
         .layer(Extension(graphql_schema));
 
-    Server::bind(&SocketAddr::from(([0, 0, 0, 0], 3008)))
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    Server::bind(&SocketAddr::from((
+        [0, 0, 0, 0],
+        env::var(PORT_ENV).unwrap().parse().unwrap(),
+    )))
+    .serve(app.into_make_service())
+    .await
+    .unwrap();
 }
